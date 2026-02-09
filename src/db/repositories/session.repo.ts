@@ -2,7 +2,7 @@
  * SessionRepository — CRUD for jules_sessions table.
  */
 
-import { eq, inArray, and, desc } from 'drizzle-orm';
+import { eq, desc, and, ne } from 'drizzle-orm';
 import type { Db } from '../index.js';
 import { julesSessions } from '../schema.js';
 
@@ -14,17 +14,17 @@ const TERMINAL_STATES = ['completed', 'failed'] as const;
 export class SessionRepository {
   constructor(private db: Db) {}
 
-  async upsert(session: SessionInsert): Promise<void> {
-    await this.db
+  async upsert(session: SessionInsert): Promise<SessionRow> {
+    const result = await this.db
       .insert(julesSessions)
       .values(session)
       .onConflictDoUpdate({
         target: julesSessions.id,
-        set: {
-          ...session,
-          id: undefined, // don't update PK
-        },
-      });
+        set: session,
+      })
+      .returning()
+      .get();
+    return result;
   }
 
   async findById(id: string): Promise<SessionRow | undefined> {
@@ -48,20 +48,17 @@ export class SessionRepository {
     return this.db
       .select()
       .from(julesSessions)
-      .where(
-        and(
-          // Not in terminal states — we check for each terminal state
-          // SQLite doesn't have a NOT IN helper in drizzle, so we use raw
-        )
-      )
+      .where(and(
+        ne(julesSessions.state, 'completed'),
+        ne(julesSessions.state, 'failed')
+      ))
       .orderBy(desc(julesSessions.createdAt));
   }
 
-  async findAll(limit = 20): Promise<SessionRow[]> {
+  async findAll(): Promise<SessionRow[]> {
     return this.db
       .select()
       .from(julesSessions)
-      .orderBy(desc(julesSessions.createdAt))
-      .limit(limit);
+      .orderBy(desc(julesSessions.createdAt));
   }
 }
