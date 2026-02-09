@@ -7,14 +7,18 @@
 import Database from 'better-sqlite3';
 import { createDb } from './index.js';
 import { loadConfig } from '../config.js';
+import { fileURLToPath } from 'url';
 
 /**
  * Run database migrations on the provided SQLite database instance.
+ * TODO: Add structured logging (JSON format) for better observability
+ * TODO: Add audit logging for compliance tracking
  */
 export function migrate(db: Database.Database): void {
-  // Enable foreign keys and WAL mode
-  db.pragma('foreign_keys = ON');
-  db.pragma('journal_mode = WAL');
+  try {
+    // Enable foreign keys and WAL mode
+    db.pragma('foreign_keys = ON');
+    db.pragma('journal_mode = WAL');
 
   // For initial setup we use raw SQL to create tables + indexes.
   // Drizzle migrations can be added later via drizzle-kit.
@@ -107,10 +111,14 @@ export function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_pr_reviews_review_status ON pr_reviews(review_state);
     CREATE INDEX IF NOT EXISTS idx_pr_reviews_auto_merge ON pr_reviews(decision);
   `);
+  } catch (error) {
+    console.error('Migration failed:', error);
+    throw error;
+  }
 }
 
-// CLI runner
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CLI runner - fixed for ESM compatibility
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
   const config = loadConfig();
   const { sqlite } = createDb(config.databasePath);
   migrate(sqlite);
