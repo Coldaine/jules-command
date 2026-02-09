@@ -75,28 +75,39 @@ export function migrate(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS pr_reviews (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       pr_url TEXT NOT NULL UNIQUE,
+      pr_number INTEGER NOT NULL,
+      repo_id TEXT REFERENCES repos(id),
       session_id TEXT REFERENCES jules_sessions(id),
+      pr_title TEXT,
+      pr_description TEXT,
+      pr_state TEXT,
+      review_status TEXT DEFAULT 'pending',
       complexity_score REAL,
-      complexity_label TEXT,
+      complexity_details TEXT,
       lines_changed INTEGER,
       files_changed INTEGER,
+      test_files_changed INTEGER,
       critical_files_touched INTEGER DEFAULT 0,
-      test_files_changed INTEGER DEFAULT 0,
       ci_status TEXT,
-      review_state TEXT,
-      decision TEXT,
-      decision_reason TEXT,
-      merged_at TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
+      auto_merge_eligible INTEGER DEFAULT 0,
+      auto_merge_reason TEXT,
+      review_notes TEXT,
+      pr_created_at TEXT,
+      first_seen_at TEXT DEFAULT (datetime('now')),
+      last_checked_at TEXT,
+      merged_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS poll_cursors (
       id TEXT PRIMARY KEY,
+      poll_type TEXT NOT NULL,
       last_poll_at TEXT,
       last_activity_seen_at TEXT,
+      last_page_token TEXT,
       poll_count INTEGER DEFAULT 0,
-      error_count INTEGER DEFAULT 0
+      consecutive_unchanged INTEGER DEFAULT 0,
+      error_count INTEGER DEFAULT 0,
+      last_error TEXT
     );
 
     -- Indexes
@@ -108,8 +119,8 @@ export function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_activities_type ON jules_activities(activity_type);
     CREATE INDEX IF NOT EXISTS idx_activities_timestamp ON jules_activities(timestamp);
     CREATE INDEX IF NOT EXISTS idx_pr_reviews_session_id ON pr_reviews(session_id);
-    CREATE INDEX IF NOT EXISTS idx_pr_reviews_review_status ON pr_reviews(review_state);
-    CREATE INDEX IF NOT EXISTS idx_pr_reviews_auto_merge ON pr_reviews(decision);
+    CREATE INDEX IF NOT EXISTS idx_pr_reviews_review_status ON pr_reviews(review_status);
+    CREATE INDEX IF NOT EXISTS idx_pr_reviews_auto_merge ON pr_reviews(auto_merge_eligible);
   `);
   } catch (error) {
     console.error('Migration failed:', error);

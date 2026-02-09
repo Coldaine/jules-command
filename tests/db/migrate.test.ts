@@ -51,16 +51,19 @@ describe('Database Migration', () => {
     // Verify pr_reviews table schema
     const prReviewsColumns = db.prepare("PRAGMA table_info(pr_reviews)").all() as { name: string; type: string; notnull: number; pk: number }[];
     expect(prReviewsColumns.map(c => c.name)).toEqual([
-      'id', 'pr_url', 'session_id', 'complexity_score', 'complexity_label',
-      'lines_changed', 'files_changed', 'critical_files_touched', 'test_files_changed',
-      'ci_status', 'review_state', 'decision', 'decision_reason', 'merged_at',
-      'created_at', 'updated_at'
+      'id', 'pr_url', 'pr_number', 'repo_id', 'session_id', 'pr_title',
+      'pr_description', 'pr_state', 'review_status', 'complexity_score',
+      'complexity_details', 'lines_changed', 'files_changed', 'test_files_changed',
+      'critical_files_touched', 'ci_status', 'auto_merge_eligible',
+      'auto_merge_reason', 'review_notes', 'pr_created_at', 'first_seen_at',
+      'last_checked_at', 'merged_at'
     ]);
 
     // Verify poll_cursors table schema
     const cursorsColumns = db.prepare("PRAGMA table_info(poll_cursors)").all() as { name: string; type: string; notnull: number; pk: number }[];
     expect(cursorsColumns.map(c => c.name)).toEqual([
-      'id', 'last_poll_at', 'last_activity_seen_at', 'poll_count', 'error_count'
+      'id', 'poll_type', 'last_poll_at', 'last_activity_seen_at', 'last_page_token',
+      'poll_count', 'consecutive_unchanged', 'error_count', 'last_error'
     ]);
 
     // Verify foreign key constraints are enabled
