@@ -54,19 +54,10 @@ export function createTestDb() {
     CREATE TABLE jules_activities (
       id TEXT PRIMARY KEY,
       session_id TEXT NOT NULL REFERENCES jules_sessions(id),
-      type TEXT NOT NULL,
-      originator TEXT,
-      message TEXT,
-      plan_step_count INTEGER,
-      progress_title TEXT,
-      progress_description TEXT,
-      has_changeset INTEGER DEFAULT 0,
-      has_bash_output INTEGER DEFAULT 0,
-      has_media INTEGER DEFAULT 0,
-      files_changed INTEGER,
-      lines_added INTEGER,
-      lines_deleted INTEGER,
-      created_at TEXT NOT NULL
+      activity_type TEXT NOT NULL,
+      timestamp TEXT NOT NULL,
+      content TEXT,
+      metadata TEXT
     );
 
     CREATE TABLE pr_reviews (

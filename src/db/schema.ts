@@ -53,19 +53,10 @@ export const julesSessions = sqliteTable('jules_sessions', {
 export const julesActivities = sqliteTable('jules_activities', {
   id: text('id').primaryKey(),
   sessionId: text('session_id').notNull().references(() => julesSessions.id),
-  type: text('type').notNull(),
-  originator: text('originator'),
-  message: text('message'),
-  planStepCount: integer('plan_step_count'),
-  progressTitle: text('progress_title'),
-  progressDescription: text('progress_description'),
-  hasChangeset: integer('has_changeset', { mode: 'boolean' }).default(false),
-  hasBashOutput: integer('has_bash_output', { mode: 'boolean' }).default(false),
-  hasMedia: integer('has_media', { mode: 'boolean' }).default(false),
-  filesChanged: integer('files_changed'),
-  linesAdded: integer('lines_added'),
-  linesDeleted: integer('lines_deleted'),
-  createdAt: text('created_at').notNull(),
+  activityType: text('activity_type').notNull(),
+  timestamp: text('timestamp').notNull(),
+  content: text('content'),
+  metadata: text('metadata'),
 });
 
 // ─── pr_reviews ─────────────────────────────────────────────────────────────

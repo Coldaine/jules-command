@@ -28,7 +28,7 @@ export class ActivityRepository {
       .select()
       .from(julesActivities)
       .where(eq(julesActivities.sessionId, sessionId))
-      .orderBy(desc(julesActivities.createdAt))
+      .orderBy(desc(julesActivities.timestamp))
       .limit(limit);
   }
 
@@ -39,10 +39,10 @@ export class ActivityRepository {
       .where(
         and(
           eq(julesActivities.sessionId, sessionId),
-          eq(julesActivities.type, type),
+          eq(julesActivities.activityType, type),
         )
       )
-      .orderBy(desc(julesActivities.createdAt));
+      .orderBy(desc(julesActivities.timestamp));
   }
 
   async findSince(sessionId: string, since: string): Promise<ActivityRow[]> {
@@ -52,9 +52,9 @@ export class ActivityRepository {
       .where(
         and(
           eq(julesActivities.sessionId, sessionId),
-          gt(julesActivities.createdAt, since),
+          gt(julesActivities.timestamp, since),
         )
       )
-      .orderBy(julesActivities.createdAt);
+      .orderBy(desc(julesActivities.timestamp));
   }
 }
