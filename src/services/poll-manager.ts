@@ -8,8 +8,7 @@ import { SessionRepository } from '../db/repositories/session.repo.js';
 import { PollCursorRepository } from '../db/repositories/poll-cursor.repo.js';
 import { ActivityRepository } from '../db/repositories/activity.repo.js';
 import { StallDetector, type StallInfo } from './stall-detector.js';
-import type { JulesService } from './jules.service.js';
-import type { GitHubService } from './github.service.js';
+
 
 export interface PollResult {
   sessionId: string;
@@ -27,17 +26,18 @@ export interface PollSummary {
 }
 
 export class PollManager {
+  private config: Config;
   private sessionRepo: SessionRepository;
   private cursorRepo: PollCursorRepository;
   private activityRepo: ActivityRepository;
   private stallDetector: StallDetector;
 
   constructor(
-    private config: Config,
-    private db: Db,
-    private julesService?: JulesService,
-    private githubService?: GitHubService,
+    config: Config,
+    db: Db,
   ) {
+    this.config = config;
+
     this.sessionRepo = new SessionRepository(db);
     this.cursorRepo = new PollCursorRepository(db);
     this.activityRepo = new ActivityRepository(db);

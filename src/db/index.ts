@@ -10,7 +10,7 @@ import * as schema from './schema.js';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-export function createDb(databasePath: string) {
+export function createDb(databasePath: string): { db: any; sqlite: any } {
   // Ensure data directory exists
   mkdirSync(dirname(databasePath), { recursive: true });
 

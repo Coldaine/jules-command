@@ -361,7 +361,7 @@ describe('MCP Tools Integration', () => {
       });
     });
 
-    describe('repo_sync', () => {
+    describe('jules_repo_sync', () => {
       it.skip('should call GitHubService.syncRepoMetadata', async () => {
         // TODO: Mock GitHubService
         // Call tool handler with repos

@@ -12,7 +12,7 @@ export class DashboardService {
   private prReviewRepo: PrReviewRepository;
 
   constructor(
-    private db: Db,
+    db: Db,
     private config: Config,
   ) {
     this.sessionRepo = new SessionRepository(db);

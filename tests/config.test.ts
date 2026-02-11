@@ -78,8 +78,8 @@ describe('Config Loading', () => {
   });
 
   it('should handle optional BWS vars being absent', () => {
-    process.env['JULES_API_KEY'] = 'test-key';
-    // Don't set BWS vars
+    // Start with a minimal environment to avoid ambient CI/host env leaking in
+    process.env = { JULES_API_KEY: 'test-key' } as NodeJS.ProcessEnv;
 
     const config = loadConfig();
 

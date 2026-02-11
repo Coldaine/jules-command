@@ -6,8 +6,7 @@
 
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
-import { SessionRepository } from '../db/repositories/session.repo.js';
-import { ActivityRepository } from '../db/repositories/activity.repo.js';
+
 
 export interface CreateSessionOpts {
   prompt: string;
@@ -19,64 +18,60 @@ export interface CreateSessionOpts {
 }
 
 export class JulesService {
-  private sessionRepo: SessionRepository;
-  private activityRepo: ActivityRepository;
-
   constructor(
-    private config: Config,
-    private db: Db,
+    _config: Config,
+    _db: Db,
   ) {
-    this.sessionRepo = new SessionRepository(db);
-    this.activityRepo = new ActivityRepository(db);
+    // Jules SDK integration will be initialized here when implemented.
   }
 
-  async createSession(opts: CreateSessionOpts): Promise<{ sessionId: string; url: string }> {
+  async createSession(_opts: CreateSessionOpts): Promise<{ sessionId: string; url: string }> {
     // TODO: Call jules.session() or jules.run() via SDK
     // Then persist to DB
     throw new Error('Not implemented — Phase 2 Task 2.1');
   }
 
-  async getSession(sessionId: string) {
+  async getSession(_sessionId: string) {
     // TODO: Fetch from SDK, upsert to DB, return
     throw new Error('Not implemented — Phase 2 Task 2.1');
   }
 
-  async listSessions(filters?: { state?: string; repo?: string; limit?: number }) {
+  async listSessions(_filters?: { state?: string; repo?: string; limit?: number }) {
     // TODO: Query DB or SDK
     throw new Error('Not implemented — Phase 2 Task 2.1');
   }
 
-  async approvePlan(sessionId: string) {
+  async approvePlan(_sessionId: string) {
     // TODO: Call session.approve() via SDK, update DB
     throw new Error('Not implemented — Phase 2 Task 2.2');
   }
 
-  async sendMessage(sessionId: string, message: string) {
+  async sendMessage(_sessionId: string, _message: string) {
     // TODO: Call session.send() via SDK, record activity
     throw new Error('Not implemented — Phase 2 Task 2.2');
   }
 
-  async askAndWait(sessionId: string, message: string) {
+  async askAndWait(_sessionId: string, _message: string) {
     // TODO: Call session.ask() via SDK, record both user + agent activities
     throw new Error('Not implemented — Phase 2 Task 2.2');
   }
 
-  async getActivities(sessionId: string, opts?: { type?: string; limit?: number; since?: string }) {
+  async getActivities(_sessionId: string, _opts?: { type?: string; limit?: number; since?: string }) {
     // TODO: Fetch + cache activities
     throw new Error('Not implemented — Phase 2 Task 2.3');
   }
 
-  async getDiff(sessionId: string, file?: string) {
+  async getDiff(_sessionId: string, _file?: string) {
     // TODO: Get unidiff patch from session snapshot
     throw new Error('Not implemented — Phase 2 Task 2.3');
   }
 
-  async getBashOutputs(sessionId: string) {
+  async getBashOutputs(_sessionId: string) {
     // TODO: Filter activities by bash output type
     throw new Error('Not implemented — Phase 2 Task 2.3');
   }
 
-  async getSessionSnapshot(sessionId: string) {
+  async getSessionSnapshot(_sessionId: string) {
     // TODO: Aggregate from DB
     throw new Error('Not implemented — Phase 2 Task 2.4');
   }

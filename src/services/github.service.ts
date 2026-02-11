@@ -6,22 +6,17 @@
 
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
-import { RepoRepository } from '../db/repositories/repo.repo.js';
-import { PrReviewRepository } from '../db/repositories/pr-review.repo.js';
+
 
 export class GitHubService {
-  private repoRepo: RepoRepository;
-  private prReviewRepo: PrReviewRepository;
-
   constructor(
-    private config: Config,
-    private db: Db,
+    _config: Config,
+    _db: Db,
   ) {
-    this.repoRepo = new RepoRepository(db);
-    this.prReviewRepo = new PrReviewRepository(db);
+    // Repositories will be created when methods are implemented.
   }
 
-  async syncRepoMetadata(owner: string, name: string) {
+  async syncRepoMetadata(_owner: string, _name: string) {
     // TODO: Fetch via Octokit, persist to repos table
     throw new Error('Not implemented — Phase 4 Task 4.1');
   }
@@ -31,13 +26,13 @@ export class GitHubService {
     throw new Error('Not implemented — Phase 4 Task 4.1');
   }
 
-  async syncPrStatus(prUrl: string) {
+  async syncPrStatus(_prUrl: string) {
     // TODO: Fetch PR state, CI checks, reviews from GitHub
     throw new Error('Not implemented — Phase 4 Task 4.2');
   }
 
-  async mergePr(prUrl: string, method: 'merge' | 'squash' | 'rebase' = 'squash') {
+  async mergePr(_prUrl: string, _method: 'merge' | 'squash' | 'rebase' = 'squash') {
     // TODO: Merge via GitHub API with validation
     throw new Error('Not implemented — Phase 4 Task 4.3');
   }
-}
+} 

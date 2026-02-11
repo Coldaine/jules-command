@@ -9,7 +9,7 @@ import { ActivityRepository } from '../../db/repositories/activity.repo.js';
 import { PrReviewRepository } from '../../db/repositories/pr-review.repo.js';
 import { AutoMergeEvaluator } from '../../services/auto-merge.js';
 import { DashboardService } from '../../services/dashboard.js';
-import { toolSchemas, type ToolName } from './schemas.js';
+import { toolSchemas, type ToolName, sessionStateSchema } from './schemas.js';
 
 export interface ToolContext {
   config: Config;
@@ -40,7 +40,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'jules_list_sessions',
     description: 'List sessions, optionally filtered by state or repo.',
-    inputSchema: { type: 'object', properties: { state: { type: 'string', enum: toolSchemas.jules_list_sessions.shape.state?._def?.values }, repo: { type: 'string' }, limit: { type: 'number' }, fromDb: { type: 'boolean' } } },
+    inputSchema: { type: 'object', properties: { state: { type: 'string', enum: sessionStateSchema.options }, repo: { type: 'string' }, limit: { type: 'number' }, fromDb: { type: 'boolean' } } },
     zodSchema: toolSchemas.jules_list_sessions,
     handler: async (args: unknown, context) => {
       const parsed = toolSchemas.jules_list_sessions.parse(args);
@@ -158,7 +158,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       return rows.slice(0, parsed.limit ?? 50);
     },
   },
-  { name: 'repo_sync', description: 'Sync GitHub repo metadata to local DB.', inputSchema: { type: 'object', properties: { repos: { type: 'array', items: { type: 'string' } }, all: { type: 'boolean' } } }, zodSchema: toolSchemas.repo_sync, handler: async () => notImplemented('repo_sync') },
+  { name: 'jules_repo_sync', description: 'Sync GitHub repo metadata to local DB.', inputSchema: { type: 'object', properties: { repos: { type: 'array', items: { type: 'string' } }, all: { type: 'boolean' } } }, zodSchema: toolSchemas.jules_repo_sync, handler: async () => notImplemented('jules_repo_sync') },
   { name: 'pr_review_status', description: 'Get PR review tracking info.', inputSchema: { type: 'object', properties: { prUrl: { type: 'string' }, sessionId: { type: 'string' }, repo: { type: 'string' } } }, zodSchema: toolSchemas.pr_review_status, handler: async () => notImplemented('pr_review_status') },
   { name: 'pr_update_review', description: 'Update PR review status or notes.', inputSchema: { type: 'object', properties: { prUrl: { type: 'string' }, status: { type: 'string', enum: ['pending', 'approved', 'changes_requested', 'closed'] }, notes: { type: 'string' } }, required: ['prUrl'] }, zodSchema: toolSchemas.pr_update_review, handler: async () => notImplemented('pr_update_review') },
   { name: 'pr_check_auto_merge', description: 'Evaluate auto-merge eligibility for pending PRs.', inputSchema: { type: 'object', properties: { prUrl: { type: 'string' } } }, zodSchema: toolSchemas.pr_check_auto_merge, handler: async () => notImplemented('pr_check_auto_merge') },

@@ -10,9 +10,11 @@ export function parsePrUrl(url: string): ParsedPrUrl {
     throw new Error(`Invalid GitHub PR URL: ${url}`);
   }
 
+  const [, owner, repo, numberStr] = match;
+
   return {
-    owner: match[1],
-    repo: match[2],
-    number: Number.parseInt(match[3], 10),
+    owner: owner!,
+    repo: repo!,
+    number: Number.parseInt(numberStr!, 10),
   };
 }

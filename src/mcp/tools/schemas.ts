@@ -52,7 +52,7 @@ export const toolSchemas = {
   jules_sessions_by_repo: z.object({ repoId: z.string().min(1), limit: z.number().int().positive().max(200).optional() }),
   jules_recent_activities: z.object({ type: activityTypeSchema.optional(), limit: z.number().int().positive().max(200).optional() }),
   pr_list_pending: z.object({ statuses: z.array(reviewStatusSchema).optional(), limit: z.number().int().positive().max(200).optional() }),
-  repo_sync: z.object({ repos: z.array(z.string()).optional(), all: z.boolean().optional() }),
+  jules_repo_sync: z.object({ repos: z.array(z.string()).optional(), all: z.boolean().optional() }),
   pr_review_status: z.object({ prUrl: z.string().optional(), sessionId: z.string().optional(), repo: z.string().optional() }),
   pr_update_review: z.object({ prUrl: z.string().min(1), status: reviewStatusSchema.optional(), notes: z.string().optional() }),
   pr_check_auto_merge: z.object({ prUrl: z.string().optional() }),
