@@ -44,7 +44,7 @@ export function migrate(db: Database.Database): void {
       id TEXT PRIMARY KEY,
       title TEXT,
       prompt TEXT NOT NULL,
-      repo_id TEXT REFERENCES repos(id),
+      repo_id TEXT REFERENCES repos(id) ON DELETE CASCADE,
       source_branch TEXT,
       state TEXT NOT NULL,
       automation_mode TEXT,
@@ -65,7 +65,7 @@ export function migrate(db: Database.Database): void {
 
     CREATE TABLE IF NOT EXISTS jules_activities (
       id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL REFERENCES jules_sessions(id),
+      session_id TEXT NOT NULL REFERENCES jules_sessions(id) ON DELETE CASCADE,
       activity_type TEXT NOT NULL,
       timestamp TEXT NOT NULL,
       content TEXT,
@@ -76,8 +76,8 @@ export function migrate(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       pr_url TEXT NOT NULL UNIQUE,
       pr_number INTEGER NOT NULL,
-      repo_id TEXT REFERENCES repos(id),
-      session_id TEXT REFERENCES jules_sessions(id),
+      repo_id TEXT REFERENCES repos(id) ON DELETE CASCADE,
+      session_id TEXT REFERENCES jules_sessions(id) ON DELETE CASCADE,
       pr_title TEXT,
       pr_description TEXT,
       pr_state TEXT,

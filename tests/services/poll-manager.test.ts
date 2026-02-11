@@ -1,8 +1,4 @@
-/**
- * Phase 6 Task 6.1-6.2: Poll Manager Tests
- */
-
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { PollManager } from '../../src/services/poll-manager.js';
 import { createTestDb } from '../setup.js';
 import { SessionRepository } from '../../src/db/repositories/session.repo.js';
@@ -15,7 +11,7 @@ describe('PollManager', () => {
     julesApiKey: 'test-jules-key',
     databasePath: ':memory:',
     pollingIntervalMs: 5000,
-    pollDelayBetweenSessionsMs: 100,
+    pollDelayBetweenSessionsMs: 0,
     stallPlanApprovalTimeoutMin: 30,
     stallFeedbackTimeoutMin: 30,
     stallNoProgressTimeoutMin: 15,
@@ -29,8 +25,6 @@ describe('PollManager', () => {
     complexityFilesThreshold: 20,
   };
 
-  let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let pollManager: PollManager;
   let sessionRepo: SessionRepository;
   let activityRepo: ActivityRepository;
@@ -38,254 +32,144 @@ describe('PollManager', () => {
 
   beforeEach(() => {
     const testDb = createTestDb();
-    db = testDb.db;
-    sqlite = testDb.sqlite;
-    pollManager = new PollManager(defaultConfig, db);
-    sessionRepo = new SessionRepository(db);
-    activityRepo = new ActivityRepository(db);
-    cursorRepo = new PollCursorRepository(db);
+    pollManager = new PollManager(defaultConfig, testDb.db);
+    sessionRepo = new SessionRepository(testDb.db);
+    activityRepo = new ActivityRepository(testDb.db);
+    cursorRepo = new PollCursorRepository(testDb.db);
   });
 
-  describe('Task 6.1: Poll Single Session', () => {
-    it.skip('should poll session and update database', async () => {
-      // Setup: Create a session in the DB
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Test Session',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
+  async function seedSession(overrides: Record<string, unknown> = {}) {
+    return sessionRepo.upsert({
+      id: 'session-1',
+      title: 'Test Session',
+      prompt: 'Fix tests',
+      repoId: null,
+      sourceBranch: 'main',
+      state: 'in_progress',
+      automationMode: null,
+      requirePlanApproval: null,
+      planJson: null,
+      planApprovedAt: null,
+      julesUrl: null,
+      prUrl: null,
+      prTitle: null,
+      errorReason: null,
+      stallDetectedAt: null,
+      stallReason: null,
+      createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: null,
+      lastPolledAt: null,
+      ...overrides,
+    });
+  }
 
-      // Mock JulesService (will be injected or mocked in real implementation)
+  describe('pollSession', () => {
+    it('returns error when session does not exist', async () => {
+      const result = await pollManager.pollSession('missing-session');
+
+      expect(result.updated).toBe(false);
+      expect(result.error).toContain('not found');
+      expect(result.stall).toBeNull();
+    });
+
+    it('updates lastPolledAt and cursor poll count', async () => {
+      await seedSession();
+
       const result = await pollManager.pollSession('session-1');
+      const updated = await sessionRepo.findById('session-1');
+      const cursor = await cursorRepo.findById('session-1');
 
-      expect(result.sessionId).toBe('session-1');
       expect(result.updated).toBe(true);
       expect(result.error).toBeNull();
+      expect(updated?.lastPolledAt).toBeTruthy();
+      expect(cursor?.pollType).toBe('session');
+      expect(cursor?.pollCount).toBe(1);
     });
 
-    it.skip('should upsert session data', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Test Session',
-        state: 'queued',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-
-      // Mock: Jules API returns updated state 'in_progress'
-      await pollManager.pollSession('session-1');
-
-      const session = await sessionRepo.findById('session-1');
-      expect(session?.state).toBe('in_progress');
-    });
-
-    it.skip('should insert new activities', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Test Session',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-
-      // Mock: Jules API returns 3 new activities
-      await pollManager.pollSession('session-1');
-
-      const activities = await activityRepo.findBySessionId('session-1');
-      expect(activities.length).toBeGreaterThan(0);
-    });
-
-    it.skip('should update poll cursor', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Test Session',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-
+    it('increments existing poll cursor', async () => {
+      await seedSession();
       await cursorRepo.upsert({
         id: 'session-1',
-        entity: 'session',
+        pollType: 'session',
         lastPollAt: new Date(Date.now() - 10000).toISOString(),
-        pollCount: 0,
+        pollCount: 5,
+        consecutiveUnchanged: 0,
+        errorCount: 0,
       });
 
       await pollManager.pollSession('session-1');
 
       const cursor = await cursorRepo.findById('session-1');
-      expect(cursor?.pollCount).toBe(1);
+      expect(cursor?.pollCount).toBe(6);
     });
 
-    it.skip('should create PR review on completion', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Test Session',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-
-      // Mock: Session transitions to 'completed' with PR URL
-      await pollManager.pollSession('session-1');
-
-      // Verify PR review row was created
-      // Verify complexity score was calculated
-      expect(true).toBe(true); // Placeholder
-    });
-
-    it.skip('should detect and flag stalls', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Test Session',
+    it('detects stalls and persists stall fields on the session', async () => {
+      await seedSession({
         state: 'awaiting_plan_approval',
-        repo: 'owner/repo',
-        branch: 'main',
-        updatedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(), // 40 min ago
-      });
-
-      const result = await pollManager.pollSession('session-1');
-
-      expect(result.stall).not.toBeNull();
-      expect(result.stall?.ruleId).toBe('plan_approval_timeout');
-    });
-
-    it.skip('should handle session not found error', async () => {
-      const result = await pollManager.pollSession('non-existent');
-
-      expect(result.updated).toBe(false);
-      expect(result.error).toContain('not found');
-    });
-  });
-
-  describe('Task 6.2: Poll All Active Sessions', () => {
-    it.skip('should poll all active sessions', async () => {
-      // Setup: Create 3 active sessions
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Session 1',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-      await sessionRepo.upsert({
-        id: 'session-2',
-        title: 'Session 2',
-        state: 'queued',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-      await sessionRepo.upsert({
-        id: 'session-3',
-        title: 'Session 3',
-        state: 'awaiting_plan_approval',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-
-      const summary = await pollManager.pollAllActive();
-
-      expect(summary.sessionsPolled).toBe(3);
-    });
-
-    it.skip('should skip completed sessions', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Active',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-      await sessionRepo.upsert({
-        id: 'session-2',
-        title: 'Completed',
-        state: 'completed',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-
-      const summary = await pollManager.pollAllActive();
-
-      expect(summary.sessionsPolled).toBe(1);
-    });
-
-    it.skip('should collect stall detections', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Stalled Session',
-        state: 'awaiting_plan_approval',
-        repo: 'owner/repo',
-        branch: 'main',
         updatedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
       });
 
-      const summary = await pollManager.pollAllActive();
+      const result = await pollManager.pollSession('session-1');
+      const updated = await sessionRepo.findById('session-1');
 
-      expect(summary.stallsDetected.length).toBeGreaterThan(0);
-      expect(summary.stallsDetected[0].sessionId).toBe('session-1');
+      expect(result.stall).not.toBeNull();
+      expect(result.stall?.ruleId).toBe('plan_approval_timeout');
+      expect(updated?.stallDetectedAt).toBeTruthy();
+      expect(updated?.stallReason).toContain('Plan awaiting approval');
     });
 
-    it.skip('should continue on individual session error', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Good Session',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
-      await sessionRepo.upsert({
-        id: 'session-2',
-        title: 'Error Session',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
-      });
+    it('uses activities to detect no-progress stalls', async () => {
+      await seedSession({ state: 'in_progress' });
+      await activityRepo.insertMany([
+        {
+          id: 'activity-1',
+          sessionId: 'session-1',
+          activityType: 'message',
+          timestamp: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+          content: 'Old activity',
+          metadata: null,
+        },
+      ]);
 
-      // Mock: session-2 fails during poll
+      const result = await pollManager.pollSession('session-1');
+
+      expect(result.stall?.ruleId).toBe('no_progress');
+    });
+  });
+
+  describe('pollAllActive', () => {
+    it('polls only active sessions and returns a summary', async () => {
+      await seedSession({ id: 'active-1', state: 'in_progress' });
+      await seedSession({ id: 'active-2', state: 'queued', updatedAt: new Date().toISOString() });
+      await seedSession({ id: 'done-1', state: 'completed', updatedAt: new Date().toISOString() });
+
       const summary = await pollManager.pollAllActive();
 
-      // Should still poll both, but one has error
       expect(summary.sessionsPolled).toBe(2);
-      expect(summary.errors.length).toBeGreaterThan(0);
+      expect(summary.sessionsUpdated).toBe(2);
+      expect(summary.prsUpdated).toBe(0);
+      expect(summary.errors).toEqual([]);
+      expect(Array.isArray(summary.stallsDetected)).toBe(true);
     });
 
-    it.skip('should respect rate limiting', async () => {
-      // Create 10 sessions
-      for (let i = 1; i <= 10; i++) {
-        await sessionRepo.upsert({
-          id: `session-${i}`,
-          title: `Session ${i}`,
-          state: 'in_progress',
-          repo: 'owner/repo',
-          branch: 'main',
-        });
-      }
-
-      // Mock: config limits to 5 sessions per cycle
-      const summary = await pollManager.pollAllActive();
-
-      // Should only poll up to limit
-      expect(summary.sessionsPolled).toBeLessThanOrEqual(10);
-    });
-
-    it.skip('should return poll summary', async () => {
-      await sessionRepo.upsert({
-        id: 'session-1',
-        title: 'Session 1',
-        state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
+    it('collects stalls from multiple sessions', async () => {
+      await seedSession({
+        id: 'stalled-1',
+        state: 'awaiting_plan_approval',
+        updatedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      });
+      await seedSession({
+        id: 'stalled-2',
+        state: 'queued',
+        createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
       });
 
       const summary = await pollManager.pollAllActive();
 
-      expect(summary).toHaveProperty('sessionsPolled');
-      expect(summary).toHaveProperty('sessionsUpdated');
-      expect(summary).toHaveProperty('stallsDetected');
-      expect(summary).toHaveProperty('prsUpdated');
-      expect(summary).toHaveProperty('errors');
+      expect(summary.stallsDetected).toHaveLength(2);
+      expect(summary.stallsDetected.map(s => s.sessionId).sort()).toEqual(['stalled-1', 'stalled-2']);
     });
   });
 });
