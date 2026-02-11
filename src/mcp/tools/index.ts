@@ -184,7 +184,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         }
       }
 
-      return { merged: true, method: parsed.method ?? 'squash', forced: parsed.force };
+      // TODO: Actually call GitHubService.mergePr() once implemented
+      notImplemented('pr_merge (GitHub API call)');
     },
   },
 ];

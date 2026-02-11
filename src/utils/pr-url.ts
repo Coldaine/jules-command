@@ -7,7 +7,7 @@ export interface ParsedPrUrl {
 export function parsePrUrl(url: string): ParsedPrUrl {
   const match = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/.*)?$/.exec(url.trim());
   if (!match) {
-    throw new Error(`Invalid GitHub PR URL: ${url}`);
+    throw new Error('Invalid GitHub PR URL format');
   }
 
   const [, owner, repo, numberStr] = match;

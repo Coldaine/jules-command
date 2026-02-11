@@ -32,6 +32,10 @@ export class PollCursorRepository {
   }
 
   async incrementPollCount(id: string): Promise<void> {
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new Error(`Poll cursor not found: ${id}`);
+    }
     await this.db
       .update(pollCursors)
       .set({

@@ -24,9 +24,10 @@ export async function validateAndCallTool(
 
   const validation = tool.zodSchema.safeParse(args ?? {});
   if (!validation.success) {
+    const fieldErrors = validation.error.issues.map((issue) => issue.path.join('.') || 'input').join(', ');
     return {
       ok: false,
-      error: `Invalid input for ${name}: ${validation.error.issues.map((issue) => issue.message).join(', ')}`,
+      error: `Invalid input for ${name}: check fields [${fieldErrors}]`,
     };
   }
 
@@ -34,9 +35,14 @@ export async function validateAndCallTool(
     const result = await tool.handler(validation.data, context);
     return { ok: true, result };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    // Avoid leaking internal details — only pass through "not implemented" or generic messages
+    const safeMessage = /not implemented/i.test(message)
+      ? message
+      : `Tool ${name} failed`;
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: safeMessage,
     };
   }
 }
