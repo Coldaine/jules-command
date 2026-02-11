@@ -19,7 +19,7 @@ export class GitHubService {
   private complexityScorer: ComplexityScorer;
 
   constructor(
-    private config: Config,
+    config: Config,
     db: Db,
   ) {
     if (!config.githubToken) {
