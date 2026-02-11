@@ -3,23 +3,22 @@
  */
 
 import type { Db } from '../db/index.js';
-import { SessionRepository } from '../db/repositories/session.repo.js';
-import { PrReviewRepository } from '../db/repositories/pr-review.repo.js';
+import type { Config } from '../config.js';
 
 export class DashboardService {
-  private sessionRepo: SessionRepository;
-  private prReviewRepo: PrReviewRepository;
-
-  constructor(private db: Db) {
-    this.sessionRepo = new SessionRepository(db);
-    this.prReviewRepo = new PrReviewRepository(db);
+  constructor(
+    private _db: Db,
+    private _config: Config,
+  ) {
+    void this._db;
+    void this._config;
   }
 
-  async generate(opts?: { includeCompleted?: boolean; hours?: number }): Promise<string> {
-    // TODO: Implement in Phase 6 Task 6.4
-    // Query sessions grouped by state
-    // Query PRs pending review
-    // Format as markdown dashboard
-    throw new Error('Not implemented — Phase 6 Task 6.4');
+  async generate(_opts?: { includeCompleted?: boolean; hours?: number }): Promise<string> {
+    return '# Dashboard\n\nStatus: [NOT IMPLEMENTED]';
+  }
+
+  async generateCompact(): Promise<string> {
+    return 'Status: [NOT IMPLEMENTED]';
   }
 }

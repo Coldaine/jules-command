@@ -4,9 +4,9 @@
 
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
-import { SessionRepository } from '../db/repositories/session.repo.js';
-import { PollCursorRepository } from '../db/repositories/poll-cursor.repo.js';
-import { StallDetector, type StallInfo } from './stall-detector.js';
+import type { StallInfo } from './stall-detector.js';
+import type { JulesService } from './jules.service.js';
+import type { GitHubService } from './github.service.js';
 
 export interface PollResult {
   sessionId: string;
@@ -24,26 +24,34 @@ export interface PollSummary {
 }
 
 export class PollManager {
-  private sessionRepo: SessionRepository;
-  private cursorRepo: PollCursorRepository;
-  private stallDetector: StallDetector;
-
   constructor(
-    private config: Config,
-    private db: Db,
+    private _jules: JulesService,
+    private _github: GitHubService,
+    private _config: Config,
+    private _db: Db,
   ) {
-    this.sessionRepo = new SessionRepository(db);
-    this.cursorRepo = new PollCursorRepository(db);
-    this.stallDetector = new StallDetector(config);
+    void this._jules;
+    void this._github;
+    void this._config;
+    void this._db;
   }
 
   async pollSession(sessionId: string): Promise<PollResult> {
-    // TODO: Implement in Phase 3 Task 3.1
-    throw new Error('Not implemented — Phase 3 Task 3.1');
+    return {
+      sessionId,
+      updated: false,
+      stall: null,
+      error: 'Not implemented',
+    };
   }
 
   async pollAllActive(): Promise<PollSummary> {
-    // TODO: Implement in Phase 3 Task 3.2
-    throw new Error('Not implemented — Phase 3 Task 3.2');
+    return {
+      sessionsPolled: 0,
+      sessionsUpdated: 0,
+      stallsDetected: [],
+      prsUpdated: 0,
+      errors: [],
+    };
   }
 }

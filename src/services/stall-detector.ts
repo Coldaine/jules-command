@@ -40,7 +40,7 @@ export class StallDetector {
     if (session.state === 'in_progress') {
       const latestActivity = activities[0]; // assumes sorted desc
       if (latestActivity) {
-        const activityAge = (now - new Date(latestActivity.createdAt).getTime()) / (1000 * 60);
+        const activityAge = (now - new Date(latestActivity.timestamp).getTime()) / (1000 * 60);
         if (activityAge > this.config.stallNoProgressTimeoutMin) {
           return this.makeStall(session, 'no_progress', activityAge,
             `No new activity for ${Math.round(activityAge)} min (threshold: ${this.config.stallNoProgressTimeoutMin} min)`);

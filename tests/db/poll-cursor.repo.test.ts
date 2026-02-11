@@ -4,7 +4,7 @@ import { PollCursorRepository } from '@/db/repositories/poll-cursor.repo.js';
 import { makePollCursor } from '../fixtures/poll-cursors.js';
 
 describe('PollCursorRepository', () => {
-  let db: any;
+  let _db: any;
   let pollCursor: PollCursorRepository;
 
   beforeEach(() => {

@@ -4,7 +4,7 @@ import { RepoRepository } from '@/db/repositories/repo.repo.js';
 import { makeRepo } from '../fixtures/repos.js';
 
 describe('RepoRepository', () => {
-  let db: any;
+  let _db: any;
   let repo: RepoRepository;
 
   beforeEach(() => {

@@ -9,8 +9,6 @@ import { julesSessions } from '../schema.js';
 export type SessionRow = typeof julesSessions.$inferSelect;
 export type SessionInsert = typeof julesSessions.$inferInsert;
 
-const TERMINAL_STATES = ['completed', 'failed'] as const;
-
 export class SessionRepository {
   constructor(private db: Db) {}
 

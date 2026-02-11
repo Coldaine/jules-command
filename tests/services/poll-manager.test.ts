@@ -2,7 +2,7 @@
  * Phase 6 Task 6.1-6.2: Poll Manager Tests
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { PollManager } from '../../src/services/poll-manager.js';
 import { createTestDb } from '../setup.js';
 import { SessionRepository } from '../../src/db/repositories/session.repo.js';
@@ -30,7 +30,7 @@ describe('PollManager', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let pollManager: PollManager;
   let sessionRepo: SessionRepository;
   let activityRepo: ActivityRepository;

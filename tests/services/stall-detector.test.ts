@@ -31,12 +31,24 @@ describe('StallDetector', () => {
     return {
       id: 'session-1',
       title: 'Test Session',
+      prompt: 'Fix bug',
       state: 'in_progress',
-      repo: 'owner/repo',
-      branch: 'main',
+      repoId: 'owner/repo',
+      sourceBranch: 'main',
+      automationMode: 'AUTO_CREATE_PR',
+      requirePlanApproval: false,
+      planJson: null,
+      planApprovedAt: null,
+      julesUrl: null,
+      prUrl: null,
+      prTitle: null,
+      errorReason: null,
+      stallDetectedAt: null,
+      stallReason: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      prUrl: null,
+      completedAt: null,
+      lastPolledAt: null,
       ...overrides,
     };
   }
@@ -46,11 +58,11 @@ describe('StallDetector', () => {
       id: 'activity-1',
       sessionId: 'session-1',
       activityType: 'bash_output',
-      createdAt: new Date().toISOString(),
-      progressDescription: 'Running command',
+      timestamp: new Date().toISOString(),
+      content: 'Running command',
+      metadata: null,
       hasBashOutput: false,
-      filesDiff: null,
-      rawPayload: null,
+      progressDescription: 'Running command',
       ...overrides,
     };
   }
@@ -122,7 +134,7 @@ describe('StallDetector', () => {
       });
       const activities: ActivityRow[] = [
         createActivity({
-          createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(), // 20 min ago
+          timestamp: new Date(Date.now() - 20 * 60 * 1000).toISOString(), // 20 min ago
         }),
       ];
 
@@ -141,7 +153,7 @@ describe('StallDetector', () => {
       });
       const activities: ActivityRow[] = [
         createActivity({
-          createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 min ago
+          timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 min ago
         }),
       ];
 
@@ -192,19 +204,19 @@ describe('StallDetector', () => {
           id: 'act-1',
           hasBashOutput: true,
           progressDescription: 'Exit Code: 1',
-          createdAt: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
+          timestamp: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
         }),
         createActivity({
           id: 'act-2',
           hasBashOutput: true,
           progressDescription: 'Exit Code: 1',
-          createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+          timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
         }),
         createActivity({
           id: 'act-3',
           hasBashOutput: true,
           progressDescription: 'Exit Code: 1',
-          createdAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+          timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
         }),
       ];
 

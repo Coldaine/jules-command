@@ -10,7 +10,7 @@ import { PrReviewRepository } from '../../src/db/repositories/pr-review.repo.js'
 
 describe('DashboardService', () => {
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let dashboard: DashboardService;
   let sessionRepo: SessionRepository;
   let prReviewRepo: PrReviewRepository;

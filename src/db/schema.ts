@@ -29,7 +29,7 @@ export const julesSessions = sqliteTable('jules_sessions', {
   id: text('id').primaryKey(),
   title: text('title'),
   prompt: text('prompt').notNull(),
-  repoId: text('repo_id').references(() => repos.id),
+  repoId: text('repo_id').references(() => repos.id, { onDelete: 'cascade' }),
   sourceBranch: text('source_branch'),
   state: text('state').notNull(),
   automationMode: text('automation_mode'),
@@ -52,11 +52,13 @@ export const julesSessions = sqliteTable('jules_sessions', {
 
 export const julesActivities = sqliteTable('jules_activities', {
   id: text('id').primaryKey(),
-  sessionId: text('session_id').notNull().references(() => julesSessions.id),
+  sessionId: text('session_id').notNull().references(() => julesSessions.id, { onDelete: 'cascade' }),
   activityType: text('activity_type').notNull(),
   timestamp: text('timestamp').notNull(),
   content: text('content'),
   metadata: text('metadata'),
+  hasBashOutput: integer('has_bash_output', { mode: 'boolean' }).default(false),
+  progressDescription: text('progress_description'),
 });
 
 // ─── pr_reviews ─────────────────────────────────────────────────────────────
@@ -65,8 +67,8 @@ export const prReviews = sqliteTable('pr_reviews', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   prUrl: text('pr_url').notNull().unique(),
   prNumber: integer('pr_number').notNull(),
-  repoId: text('repo_id').references(() => repos.id),
-  sessionId: text('session_id').references(() => julesSessions.id),
+  repoId: text('repo_id').references(() => repos.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id').references(() => julesSessions.id, { onDelete: 'set null' }),
   prTitle: text('pr_title'),
   prDescription: text('pr_description'),
   prState: text('pr_state'),

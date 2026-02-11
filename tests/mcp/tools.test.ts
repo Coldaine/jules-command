@@ -9,7 +9,7 @@ import { PrReviewRepository } from '../../src/db/repositories/pr-review.repo.js'
 import type { Config } from '../../src/config.js';
 
 describe('MCP Tools Integration', () => {
-  const defaultConfig: Config = {
+  const _defaultConfig: Config = {
     julesApiKey: 'test-jules-key',
     databasePath: ':memory:',
     pollingIntervalMs: 5000,
@@ -28,7 +28,7 @@ describe('MCP Tools Integration', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let sessionRepo: SessionRepository;
   let prReviewRepo: PrReviewRepository;
 
