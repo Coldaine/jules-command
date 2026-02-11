@@ -31,7 +31,7 @@ function testConfig(): Config {
 
 describe('DashboardService', () => {
   let db: ReturnType<typeof createTestDb>['db'];
-  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let dashboard: DashboardService;
   let sessionRepo: SessionRepository;
   let prReviewRepo: PrReviewRepository;

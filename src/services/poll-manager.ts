@@ -33,11 +33,13 @@ export class PollManager {
   private stallDetector: StallDetector;
 
   constructor(
-    private _jules: JulesService,
-    private _github: GitHubService,
+    _jules: JulesService,
+    _github: GitHubService,
     private _config: Config,
     db: Db,
   ) {
+    void _jules;
+    void _github;
     this.sessionRepo = new SessionRepository(db);
     this.cursorRepo = new PollCursorRepository(db);
     this.activityRepo = new ActivityRepository(db);

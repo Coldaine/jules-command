@@ -7,6 +7,7 @@ import { repos } from '../../src/db/schema.js';
 
 const config: Config = {
   julesApiKey: 'test',
+  githubToken: 'test-token',
   databasePath: ':memory:',
   pollingIntervalMs: 5000,
   pollDelayBetweenSessionsMs: 100,
@@ -26,9 +27,9 @@ const config: Config = {
 describe('validateAndCallTool', () => {
   it('rejects invalid enum inputs', async () => {
     const { db } = createTestDb();
-    const result = await validateAndCallTool('jules_sessions_by_state', { state: 'bad' }, { db, config });
+    const result = await validateAndCallTool('jules_sessions_list', { state: 'bad' }, { db, config });
     expect(result.ok).toBe(false);
-    expect(result.error).toContain('Invalid input');
+    expect(result.error).toContain('Invalid input for jules_sessions_list: check fields [state]');
   });
 
   it('calls safe query tool with valid input', async () => {
@@ -42,7 +43,7 @@ describe('validateAndCallTool', () => {
       stallReason: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), completedAt: null, lastPolledAt: null,
     });
 
-    const result = await validateAndCallTool('jules_sessions_by_state', { state: 'queued' }, { db, config });
+    const result = await validateAndCallTool('jules_sessions_list', { state: 'queued' }, { db, config });
     expect(result.ok).toBe(true);
     expect(Array.isArray(result.result)).toBe(true);
   });
@@ -51,6 +52,7 @@ describe('validateAndCallTool', () => {
     const { db } = createTestDb();
     const result = await validateAndCallTool('pr_merge', { prUrl: 'https://github.com/o/r/pull/1' }, { db, config });
     expect(result.ok).toBe(true);
-    expect(result.result).toMatchObject({ merged: false });
+    expect(result.result).toMatchObject({ isError: true });
+    expect((result.result as any).content[0].text).toContain('Merge requires confirmation');
   });
 });

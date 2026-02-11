@@ -6,9 +6,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createTestDb } from '../setup.js';
 import { SessionRepository } from '../../src/db/repositories/session.repo.js';
 import { PrReviewRepository } from '../../src/db/repositories/pr-review.repo.js';
+import { validateAndCallTool } from '../../src/mcp/server.js';
+import { julesActivities, repos } from '../../src/db/schema.js';
 import type { Config } from '../../src/config.js';
 
-// ─── JulesService Mock Setup ────────────────────────────────────────────────
+// ─── Service Mock Setup ───────────────────────────────────────────────────
 
 const mockJulesService = {
   createSession: vi.fn(),
@@ -22,11 +24,56 @@ const mockJulesService = {
 };
 
 vi.mock('../../src/services/jules.service.js', () => ({
-  JulesService: vi.fn(() => mockJulesService),
+  JulesService: class {
+    constructor() {
+      return mockJulesService;
+    }
+  },
+}));
+
+const mockGitHubService = {
+  syncAllRepos: vi.fn(),
+  syncRepoMetadata: vi.fn(),
+  syncPrStatus: vi.fn(),
+  mergePr: vi.fn(),
+};
+
+vi.mock('../../src/services/github.service.js', () => ({
+  GitHubService: class {
+    constructor() {
+      return mockGitHubService;
+    }
+  },
+}));
+
+const mockDashboardService = {
+  generate: vi.fn(),
+  generateCompact: vi.fn(),
+};
+
+vi.mock('../../src/services/dashboard.js', () => ({
+  DashboardService: class {
+    constructor() {
+      return mockDashboardService;
+    }
+  },
+}));
+
+const mockPollManager = {
+  pollSession: vi.fn(),
+  pollAllActive: vi.fn(),
+};
+
+vi.mock('../../src/services/poll-manager.js', () => ({
+  PollManager: class {
+    constructor() {
+      return mockPollManager;
+    }
+  },
 }));
 
 describe('MCP Tools Integration', () => {
-  const _defaultConfig: Config = {
+  const defaultConfig: Config = {
     julesApiKey: 'test-jules-key',
     databasePath: ':memory:',
     pollingIntervalMs: 5000,
@@ -45,7 +92,7 @@ describe('MCP Tools Integration', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let sessionRepo: SessionRepository;
   let prReviewRepo: PrReviewRepository;
 
@@ -59,6 +106,26 @@ describe('MCP Tools Integration', () => {
     prReviewRepo = new PrReviewRepository(db);
   });
 
+  async function setupTestSession(sessionId: string = 'session-1') {
+    const now = new Date().toISOString();
+    await db.insert(repos).values({
+      id: 'owner/repo',
+      owner: 'owner',
+      name: 'repo',
+      fullName: 'owner/repo',
+    });
+    await sessionRepo.upsert({
+      id: sessionId,
+      title: 'Test Session',
+      prompt: 'Test prompt',
+      state: 'in_progress',
+      repoId: 'owner/repo',
+      sourceBranch: 'main',
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
   describe('Task 7.2: Jules Tools', () => {
     describe('jules_create_session', () => {
       it('should create session via JulesService', async () => {
@@ -67,66 +134,39 @@ describe('MCP Tools Integration', () => {
           url: 'https://jules.ai/session/new-session-123',
         });
         
-        const { handleCreateSession } = await import('../../src/mcp/tools/handlers/jules.handlers.js');
-        const result = await handleCreateSession(
+        const result = await validateAndCallTool(
+          'jules_create_session',
           { prompt: 'Test task' },
           { config: defaultConfig, db }
         );
         
-        expect(mockJulesService.createSession).toHaveBeenCalledWith({ prompt: 'Test task' });
-        expect(result.sessionId).toBe('new-session-123');
-        expect(result.url).toBe('https://jules.ai/session/new-session-123');
+        expect(result.ok).toBe(true);
+        expect(mockJulesService.createSession).toHaveBeenCalledWith({
+          prompt: 'Test task',
+          autoPr: true,
+          requireApproval: false,
+        });
+        expect((result.result as any).sessionId).toBe('new-session-123');
       });
     });
 
-    describe('jules_list_sessions', () => {
-      it.skip('should list sessions from database', async () => {
-        const now = new Date().toISOString();
-        await sessionRepo.upsert({
-          id: 'session-1',
-          title: 'Test Session',
-          prompt: 'Test prompt',
-          state: 'in_progress',
-          repoId: 'owner/repo',
-          sourceBranch: 'main',
-          createdAt: now,
-          updatedAt: now,
-        });
+    describe('jules_sessions_list', () => {
+      it('should list sessions from database', async () => {
+        await setupTestSession();
 
-        // TODO: Call tool handler
-        // Verify it returns session list
-        expect(true).toBe(true);
-      });
-
-      it.skip('should filter by state', async () => {
-        const now = new Date().toISOString();
-        await sessionRepo.upsert({
-          id: 'session-1',
-          title: 'In Progress',
-          prompt: 'Test prompt 1',
-          state: 'in_progress',
-          repoId: 'owner/repo',
-          sourceBranch: 'main',
-          createdAt: now,
-          updatedAt: now,
-        });
-        await sessionRepo.upsert({
-          id: 'session-2',
-          title: 'Completed',
-          prompt: 'Test prompt 2',
-          state: 'completed',
-          repoId: 'owner/repo',
-          sourceBranch: 'main',
-          createdAt: now,
-          updatedAt: now,
-        });
-
-        // TODO: Call tool with state filter
-        expect(true).toBe(true);
+        const result = await validateAndCallTool(
+          'jules_sessions_list',
+          {},
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(Array.isArray(result.result)).toBe(true);
+        expect((result.result as any[]).length).toBe(1);
       });
     });
 
-    describe('jules_get_session', () => {
+    describe('jules_session_get', () => {
       it('should fetch and return session details', async () => {
         const now = new Date().toISOString();
         mockJulesService.getSession.mockResolvedValue({
@@ -140,35 +180,40 @@ describe('MCP Tools Integration', () => {
           updatedAt: now,
         });
         
-        const { handleGetSession } = await import('../../src/mcp/tools/handlers/jules.handlers.js');
-        const result = await handleGetSession(
+        const result = await validateAndCallTool(
+          'jules_session_get',
           { sessionId: 'session-1' },
           { config: defaultConfig, db }
         );
         
+        expect(result.ok).toBe(true);
         expect(mockJulesService.getSession).toHaveBeenCalledWith('session-1');
-        expect(result.id).toBe('session-1');
-        expect(result.title).toBe('Test Session');
+        expect((result.result as any).id).toBe('session-1');
       });
     });
 
-    describe('jules_get_activities', () => {
+    describe('jules_activities_list', () => {
       it('should return activities for session', async () => {
-        mockJulesService.getActivities.mockResolvedValue([
-          {
-            id: 'act-1',
-            sessionId: 'session-1',
-            activityType: 'message',
-            timestamp: new Date().toISOString(),
-            content: 'Test activity',
-          },
-        ]);
+        await setupTestSession();
+        const now = new Date().toISOString();
+
+        await db.insert(julesActivities).values({
+          id: 'act-1',
+          sessionId: 'session-1',
+          activityType: 'message',
+          timestamp: now,
+          content: 'Test activity',
+        });
+
+        const result = await validateAndCallTool(
+          'jules_activities_list',
+          { sessionId: 'session-1' },
+          { config: defaultConfig, db }
+        );
         
-        const { handleGetSession } = await import('../../src/mcp/tools/handlers/jules.handlers.js');
-        const result = await mockJulesService.getActivities('session-1');
-        
-        expect(result).toHaveLength(1);
-        expect(result[0].activityType).toBe('message');
+        expect(result.ok).toBe(true);
+        expect((result.result as any[])).toHaveLength(1);
+        expect((result.result as any[])[0].activityType).toBe('message');
       });
     });
 
@@ -176,14 +221,15 @@ describe('MCP Tools Integration', () => {
       it('should call JulesService.approvePlan', async () => {
         mockJulesService.approvePlan.mockResolvedValue(undefined);
         
-        const { handleApprovePlan } = await import('../../src/mcp/tools/handlers/jules.handlers.js');
-        const result = await handleApprovePlan(
+        const result = await validateAndCallTool(
+          'jules_approve_plan',
           { sessionId: 'session-1' },
           { config: defaultConfig, db }
         );
         
+        expect(result.ok).toBe(true);
         expect(mockJulesService.approvePlan).toHaveBeenCalledWith('session-1');
-        expect(result.success).toBe(true);
+        expect((result.result as any).success).toBe(true);
       });
     });
 
@@ -191,14 +237,14 @@ describe('MCP Tools Integration', () => {
       it('should call JulesService.sendMessage', async () => {
         mockJulesService.sendMessage.mockResolvedValue(undefined);
         
-        const { handleSendMessage } = await import('../../src/mcp/tools/handlers/jules.handlers.js');
-        const result = await handleSendMessage(
+        const result = await validateAndCallTool(
+          'jules_send_message',
           { sessionId: 'session-1', message: 'Test message' },
           { config: defaultConfig, db }
         );
         
+        expect(result.ok).toBe(true);
         expect(mockJulesService.sendMessage).toHaveBeenCalledWith('session-1', 'Test message');
-        expect(result.success).toBe(true);
       });
     });
 
@@ -207,14 +253,15 @@ describe('MCP Tools Integration', () => {
         const mockDiff = 'diff --git a/file.ts b/file.ts\n+added line';
         mockJulesService.getDiff.mockResolvedValue(mockDiff);
         
-        const { handleGetDiff } = await import('../../src/mcp/tools/handlers/jules.handlers.js');
-        const result = await handleGetDiff(
+        const result = await validateAndCallTool(
+          'jules_get_diff',
           { sessionId: 'session-1' },
           { config: defaultConfig, db }
         );
         
+        expect(result.ok).toBe(true);
         expect(mockJulesService.getDiff).toHaveBeenCalledWith('session-1', undefined);
-        expect(result).toBe(mockDiff);
+        expect(result.result).toBe(mockDiff);
       });
     });
 
@@ -225,121 +272,114 @@ describe('MCP Tools Integration', () => {
         ];
         mockJulesService.getBashOutputs.mockResolvedValue(mockOutputs);
         
-        const { handleGetBashOutputs } = await import('../../src/mcp/tools/handlers/jules.handlers.js');
-        const result = await handleGetBashOutputs(
+        const result = await validateAndCallTool(
+          'jules_get_bash_outputs',
           { sessionId: 'session-1' },
           { config: defaultConfig, db }
         );
         
+        expect(result.ok).toBe(true);
         expect(mockJulesService.getBashOutputs).toHaveBeenCalledWith('session-1');
-        expect(result).toEqual(mockOutputs);
+        expect(result.result).toEqual(mockOutputs);
       });
     });
   });
 
   describe('Task 7.3: Dashboard & Orchestration Tools', () => {
     describe('jules_dashboard', () => {
-      it.skip('should call DashboardService.generate', async () => {
-        const now = new Date().toISOString();
-        await sessionRepo.upsert({
-          id: 'session-1',
-          title: 'Test Session',
-          prompt: 'Test prompt',
-          state: 'in_progress',
-          repoId: 'owner/repo',
-          sourceBranch: 'main',
-          createdAt: now,
-          updatedAt: now,
+      it('should call DashboardService.generate', async () => {
+        mockDashboardService.generate.mockResolvedValue('# Mock Dashboard');
+
+        const result = await validateAndCallTool(
+          'jules_dashboard',
+          { includeCompleted: true },
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(mockDashboardService.generate).toHaveBeenCalledWith({
+          includeCompleted: true,
+          hours: 24,
         });
-
-        // TODO: Call tool handler
-        // Verify dashboard output
-        expect(true).toBe(true);
-      });
-
-      it.skip('should return session counts', async () => {
-        // TODO: Verify session counts in output
-        expect(true).toBe(true);
-      });
-
-      it.skip('should list stalled sessions', async () => {
-        // TODO: Verify stalled sessions listed
-        expect(true).toBe(true);
-      });
-
-      it.skip('should list pending PRs', async () => {
-        // TODO: Verify PR list in output
-        expect(true).toBe(true);
+        expect((result.result as any).content[0].text).toBe('# Mock Dashboard');
       });
     });
 
     describe('jules_status', () => {
-      it.skip('should return compact status', async () => {
-        // TODO: Call tool handler
-        // Verify compact format
-        expect(true).toBe(true);
+      it('should return compact status', async () => {
+        mockDashboardService.generate.mockResolvedValue('Compact Status');
+
+        const result = await validateAndCallTool(
+          'jules_status',
+          {},
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(mockDashboardService.generate).toHaveBeenCalledWith({ hours: 1 });
+        expect((result.result as any).content[0].text).toBe('Compact Status');
       });
     });
 
     describe('jules_poll', () => {
-      it.skip('should call PollManager.pollAllActive', async () => {
-        // TODO: Mock PollManager
-        // Call tool handler
-        // Verify poll executed
-        expect(true).toBe(true);
-      });
+      it('should call PollManager.pollAllActive', async () => {
+        mockPollManager.pollAllActive.mockResolvedValue({
+          sessionsPolled: 2,
+          sessionsUpdated: 1,
+          stallsDetected: [],
+          prsUpdated: 0,
+          errors: [],
+        });
 
-      it.skip('should return poll summary', async () => {
-        // TODO: Verify summary format
-        expect(true).toBe(true);
+        const result = await validateAndCallTool(
+          'jules_poll',
+          {},
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(mockPollManager.pollAllActive).toHaveBeenCalled();
+        expect((result.result as any).sessionsPolled).toBe(2);
       });
     });
 
     describe('jules_detect_stalls', () => {
-      it.skip('should detect stalled sessions', async () => {
-        const now = new Date().toISOString();
-        await sessionRepo.upsert({
-          id: 'session-1',
-          title: 'Stalled',
-          prompt: 'Test stall detection',
-          state: 'awaiting_plan_approval',
-          repoId: 'owner/repo',
-          sourceBranch: 'main',
-          createdAt: now,
-          updatedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
+      it('should detect stalled sessions', async () => {
+        mockPollManager.pollAllActive.mockResolvedValue({
+          sessionsPolled: 1,
+          sessionsUpdated: 0,
+          stallsDetected: [{ sessionId: 's1', reason: 'long-wait' }],
+          prsUpdated: 0,
+          errors: [],
         });
 
-        // TODO: Call tool handler
-        // Verify stalls detected
-        expect(true).toBe(true);
-      });
-    });
-
-    describe('jules_query', () => {
-      it.skip('should query sessions table', async () => {
-        // TODO: Setup test data
-        // Call tool with table='sessions'
-        // Verify query results
-        expect(true).toBe(true);
-      });
-
-      it.skip('should support where clauses', async () => {
-        // TODO: Test filtering
-        expect(true).toBe(true);
+        const result = await validateAndCallTool(
+          'jules_detect_stalls',
+          {},
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(mockPollManager.pollAllActive).toHaveBeenCalled();
+        expect((result.result as any).stalls).toHaveLength(1);
       });
     });
   });
 
   describe('Task 7.3: PR Management Tools', () => {
     describe('pr_review_status', () => {
-      it.skip('should return PR review details', async () => {
+      it('should return PR review details', async () => {
+        mockGitHubService.syncPrStatus.mockResolvedValue(undefined);
+        await setupTestSession();
+
+        const now = new Date().toISOString();
         await prReviewRepo.upsert({
           sessionId: 'session-1',
           prUrl: 'https://github.com/owner/repo/pull/123',
           prNumber: 123,
           prTitle: 'Test PR',
           prState: 'open',
-          prCreatedAt: new Date().toISOString(),
+          prCreatedAt: now,
           ciStatus: 'success',
           reviewStatus: 'approved',
           linesChanged: 50,
@@ -349,40 +389,51 @@ describe('MCP Tools Integration', () => {
           complexityScore: 0.2,
         });
 
-        // TODO: Call tool handler with prUrl
-        // Verify PR details returned
-        expect(true).toBe(true);
-      });
-
-      it.skip('should include complexity score', async () => {
-        // TODO: Verify complexity in output
-        expect(true).toBe(true);
-      });
-
-      it.skip('should include CI status', async () => {
-        // TODO: Verify CI status in output
-        expect(true).toBe(true);
-      });
-
-      it.skip('should include eligibility check', async () => {
-        // TODO: Verify auto-merge eligibility
-        expect(true).toBe(true);
+        const result = await validateAndCallTool(
+          'pr_review_status',
+          { prUrl: 'https://github.com/owner/repo/pull/123' },
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(mockGitHubService.syncPrStatus).toHaveBeenCalled();
+        expect((result.result as any).prNumber).toBe(123);
       });
     });
 
     describe('pr_update_review', () => {
-      it.skip('should update PR review status', async () => {
-        // TODO: Call tool handler with updates
-        // Verify DB updated
-        expect(true).toBe(true);
+      it('should update PR review status', async () => {
+        await setupTestSession();
+        const prUrl = 'https://github.com/owner/repo/pull/123';
+        
+        await prReviewRepo.upsert({
+          sessionId: 'session-1',
+          prUrl,
+          prNumber: 123,
+          reviewStatus: 'pending',
+        });
+        
+        const result = await validateAndCallTool(
+          'pr_update_review',
+          { prUrl, status: 'approved', notes: 'Looks good' },
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        const updated = await prReviewRepo.findByPrUrl(prUrl);
+        expect(updated?.reviewStatus).toBe('approved');
+        expect(updated?.reviewNotes).toBe('Looks good');
       });
     });
 
     describe('pr_check_auto_merge', () => {
-      it.skip('should evaluate auto-merge eligibility', async () => {
+      it('should evaluate auto-merge eligibility', async () => {
+        await setupTestSession();
+        const prUrl = 'https://github.com/owner/repo/pull/123';
+        
         await prReviewRepo.upsert({
           sessionId: 'session-1',
-          prUrl: 'https://github.com/owner/repo/pull/123',
+          prUrl,
           prNumber: 123,
           prTitle: 'Test PR',
           prState: 'open',
@@ -396,67 +447,88 @@ describe('MCP Tools Integration', () => {
           complexityScore: 0.2,
         });
 
-        // TODO: Call tool handler
-        // Verify eligibility response
-        expect(true).toBe(true);
-      });
-
-      it.skip('should return reasons if not eligible', async () => {
-        // TODO: Test ineligible PR
-        expect(true).toBe(true);
+        const result = await validateAndCallTool(
+          'pr_check_auto_merge',
+          { prUrl },
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect((result.result as any).eligible).toBe(true);
       });
     });
 
     describe('pr_merge', () => {
-      it.skip('should call GitHubService.mergePr', async () => {
-        // TODO: Mock GitHubService
-        // Call tool handler
-        // Verify merge called
-        expect(true).toBe(true);
-      });
+      it('should call GitHubService.mergePr', async () => {
+        mockGitHubService.mergePr.mockResolvedValue({ success: true, merged: true });
+        await setupTestSession();
 
-      it.skip('should update database after merge', async () => {
-        // TODO: Verify merged_at timestamp set
-        expect(true).toBe(true);
-      });
+        const prUrl = 'https://github.com/owner/repo/pull/123';
+        await prReviewRepo.upsert({
+          sessionId: 'session-1',
+          prUrl,
+          prNumber: 123,
+          prState: 'open',
+          prCreatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+          ciStatus: 'success',
+          reviewStatus: 'approved',
+          linesChanged: 50,
+          filesChanged: 3,
+          testFilesChanged: 1,
+          criticalFilesTouched: false,
+          complexityScore: 0.2,
+        });
 
-      it.skip('should reject if not eligible', async () => {
-        // TODO: Test merge rejection
-        expect(true).toBe(true);
+        const result = await validateAndCallTool(
+          'pr_merge',
+          { prUrl, confirm: true },
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(mockGitHubService.mergePr).toHaveBeenCalled();
       });
     });
 
     describe('jules_repo_sync', () => {
-      it.skip('should call GitHubService.syncRepoMetadata', async () => {
-        // TODO: Mock GitHubService
-        // Call tool handler with repos
-        // Verify sync called
-        expect(true).toBe(true);
-      });
+      it('should call GitHubService.syncRepoMetadata', async () => {
+        mockGitHubService.syncRepoMetadata.mockResolvedValue(undefined);
 
-      it.skip('should sync all repos when all=true', async () => {
-        // TODO: Test bulk sync
-        expect(true).toBe(true);
+        const result = await validateAndCallTool(
+          'jules_repo_sync',
+          { repos: ['owner/repo'] },
+          { config: defaultConfig, db }
+        );
+        
+        expect(result.ok).toBe(true);
+        expect(mockGitHubService.syncRepoMetadata).toHaveBeenCalledWith('owner', 'repo');
       });
     });
   });
 
   describe('Error Handling', () => {
-    it.skip('should handle missing required parameters', async () => {
-      // TODO: Call tool without required param
-      // Verify error response
-      expect(true).toBe(true);
+    it('should handle missing required parameters', async () => {
+      const result = await validateAndCallTool(
+        'jules_create_session',
+        {},
+        { config: defaultConfig, db }
+      );
+      
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Invalid input');
     });
 
-    it.skip('should handle invalid session IDs', async () => {
-      // TODO: Test with non-existent session
-      expect(true).toBe(true);
-    });
-
-    it.skip('should handle service errors gracefully', async () => {
-      // TODO: Mock service error
-      // Verify error message returned
-      expect(true).toBe(true);
+    it('should handle service errors gracefully', async () => {
+      mockJulesService.createSession.mockRejectedValue(new Error('API Down'));
+      
+      const result = await validateAndCallTool(
+        'jules_create_session',
+        { prompt: 'Test' },
+        { config: defaultConfig, db }
+      );
+      
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('API Down');
     });
   });
 });

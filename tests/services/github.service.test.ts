@@ -28,7 +28,11 @@ const mockOctokit = {
 };
 
 vi.mock('@octokit/rest', () => ({
-  Octokit: vi.fn(() => mockOctokit),
+  Octokit: class {
+    constructor() {
+      return mockOctokit;
+    }
+  },
 }));
 
 describe('GitHubService', () => {
@@ -52,7 +56,7 @@ describe('GitHubService', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let service: GitHubService;
 
   beforeEach(() => {

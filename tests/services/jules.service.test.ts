@@ -67,7 +67,7 @@ describe('JulesService', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let service: JulesService;
 
   beforeEach(() => {

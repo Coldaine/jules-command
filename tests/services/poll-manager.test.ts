@@ -11,6 +11,7 @@ import type { Config } from "../../src/config.js";
 describe("PollManager", () => {
   const defaultConfig: Config = {
     julesApiKey: "test-jules-key",
+    githubToken: "test-token",
     databasePath: ":memory:",
     pollingIntervalMs: 5000,
     pollDelayBetweenSessionsMs: 0,

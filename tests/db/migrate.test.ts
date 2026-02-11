@@ -7,7 +7,7 @@ describe("Database Migration", () => {
     const db = new Database(":memory:");
     migrate(db);
 
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type=\"table\"").all() as { name: string }[];
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
     const tableNames = tables.map(t => t.name).filter(name => !name.startsWith("sqlite_")).sort();
 
     expect(tableNames).toEqual([

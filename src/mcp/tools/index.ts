@@ -2,31 +2,34 @@ import { z } from 'zod';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import * as schemas from './schemas.js';
 import { julesSessions, julesActivities, prReviews, repos } from '../../db/schema.js';
-import { SessionRepository } from '../../db/repositories/session.repo.js';
-import { ActivityRepository } from '../../db/repositories/activity.repo.js';
 import { PrReviewRepository } from '../../db/repositories/pr-review.repo.js';
 import { AutoMergeEvaluator } from '../../services/auto-merge.js';
 import { DashboardService } from '../../services/dashboard.js';
+import { JulesService } from '../../services/jules.service.js';
+import { GitHubService } from '../../services/github.service.js';
+import { PollManager } from '../../services/poll-manager.js';
+import { StallDetector } from '../../services/stall-detector.js';
+import { ComplexityScorer } from '../../services/complexity-scorer.js';
 import type { Db } from '../../db/index.js';
 import type { Config } from '../../config.js';
 
 export interface ToolContext {
   db: Db;
   config: Config;
-  services: {
-    jules: any;
-    github: any;
-    stallDetector: any;
-    complexityScorer: any;
+  services?: {
+    jules: JulesService;
+    github: GitHubService;
+    stallDetector: StallDetector;
+    complexityScorer: ComplexityScorer;
     autoMergeEvaluator: AutoMergeEvaluator;
-    pollManager: any;
+    pollManager: PollManager;
     dashboard: DashboardService;
   };
 }
 
 export type ToolHandler<T = any> = (args: T, context: ToolContext) => Promise<any>;
 
-export interface ToolDefinition<TInput = any, TOutput = any> {
+export interface ToolDefinition<TInput = any> {
   name: schemas.ToolName;
   description: string;
   inputSchema: Record<string, unknown>;
@@ -39,10 +42,152 @@ export interface ToolDefinition<TInput = any, TOutput = any> {
 
 // --- Handlers ---
 
-const handleNotImplemented: ToolHandler = async (_args, _context) => {
-  return {
-    content: [{ type: 'text', text: 'This tool is not yet fully implemented.' }],
+const handleJulesCreateSession: ToolHandler<z.infer<typeof schemas.JulesCreateSessionSchema>> = async (args, { services }) => {
+  return services!.jules.createSession(args);
+};
+
+const handleJulesApprovePlan: ToolHandler<z.infer<typeof schemas.JulesApprovePlanSchema>> = async (args, { services }) => {
+  await services!.jules.approvePlan(args.sessionId);
+  return { success: true };
+};
+
+const handleJulesSendMessage: ToolHandler<z.infer<typeof schemas.JulesSendMessageSchema>> = async (args, { services }) => {
+  await services!.jules.sendMessage(args.sessionId, args.message);
+  return { success: true };
+};
+
+const handleJulesGetDiff: ToolHandler<z.infer<typeof schemas.JulesGetDiffSchema>> = async (args, { services }) => {
+  return services!.jules.getDiff(args.sessionId, args.file);
+};
+
+const handleJulesGetBashOutputs: ToolHandler<z.infer<typeof schemas.JulesGetBashOutputsSchema>> = async (args, { services }) => {
+  return services!.jules.getBashOutputs(args.sessionId);
+};
+
+const handleRepoSync: ToolHandler<z.infer<typeof schemas.RepoSyncSchema>> = async (args, { services }) => {
+  if (args.all) {
+    await services!.github.syncAllRepos();
+  } else if (args.repos) {
+    for (const repo of args.repos) {
+      const parts = repo.split('/');
+      if (parts.length === 2) {
+        const [owner, name] = parts as [string, string];
+        await services!.github.syncRepoMetadata(owner, name);
+      }
+    }
+  }
+  return { success: true };
+};
+
+const handlePrReviewStatus: ToolHandler<z.infer<typeof schemas.PrReviewStatusSchema_Tool>> = async (args, { db, services }) => {
+  if (args.prUrl) {
+    await services!.github.syncPrStatus(args.prUrl);
+    const prRepo = new PrReviewRepository(db);
+    return prRepo.findByPrUrl(args.prUrl);
+  }
+  return { error: 'prUrl is required for sync' };
+};
+
+const handlePrMerge: ToolHandler<z.infer<typeof schemas.PrMergeSchema>> = async (args, { config, db, services }) => {
+  const { prUrl, method, force, confirm } = args;
+
+  if (!confirm && !force) {
+    return {
+      content: [{ type: 'text', text: 'Merge requires confirmation. Please set confirm: true or force: true.' }],
+      isError: true,
+    };
+  }
+
+  const prRepo = new PrReviewRepository(db);
+  const pr = await prRepo.findByPrUrl(prUrl);
+
+  if (!pr && !force) {
+    return { merged: false, reason: 'PR review row not found' };
+  }
+
+  if (!force && pr) {
+    const evaluator = new AutoMergeEvaluator(config);
+    const evaluation = evaluator.evaluate(pr);
+    if (!evaluation.eligible) {
+      return { merged: false, reason: 'PR not eligible for merge', reasons: evaluation.reasons };
+    }
+  }
+
+  await services!.github.mergePr(prUrl, method);
+  return { success: true, merged: true };
+};
+
+const handleHealthCheck: ToolHandler = async (_args, { db }) => {
+  const status: Record<string, any> = {
+    database: 'ok',
+    julesApi: 'pending',
+    githubApi: 'pending',
   };
+
+  try {
+    const result = (db as any).get(sql`SELECT 1`);
+    if (!result) status.database = 'error';
+  } catch (_) {
+    status.database = 'error';
+  }
+
+  return status;
+};
+
+const handleJulesDashboard: ToolHandler<z.infer<typeof schemas.JulesDashboardSchema>> = async (args, { services }) => {
+  const dashboard = await services!.dashboard.generate(args);
+  return {
+    content: [{ type: 'text', text: dashboard }],
+  };
+};
+
+const handleJulesStatus: ToolHandler = async (_args, { services }) => {
+  const dashboard = await services!.dashboard.generate({ hours: 1 });
+  return {
+    content: [{ type: 'text', text: dashboard }],
+  };
+};
+
+const handleJulesPoll: ToolHandler<z.infer<typeof schemas.JulesPollSchema>> = async (args, { services }) => {
+  if (args.sessionIds && args.sessionIds.length > 0) {
+    const results = [];
+    for (const id of args.sessionIds) {
+      results.push(await services!.pollManager.pollSession(id));
+    }
+    return { results };
+  }
+  return services!.pollManager.pollAllActive();
+};
+
+const handleJulesDetectStalls: ToolHandler = async (_args, { services }) => {
+  const summary = await services!.pollManager.pollAllActive();
+  return {
+    stalls: summary.stallsDetected,
+    count: summary.stallsDetected.length,
+  };
+};
+
+const handlePrUpdateReview: ToolHandler<z.infer<typeof schemas.PrUpdateReviewSchema>> = async (args, { db }) => {
+  const prRepo = new PrReviewRepository(db);
+  const pr = await prRepo.findByPrUrl(args.prUrl);
+  
+  await prRepo.upsert({
+    ...(pr || {}),
+    prUrl: args.prUrl,
+    reviewStatus: args.status,
+    reviewNotes: args.notes,
+  } as any);
+  
+  return { success: true };
+};
+
+const handlePrCheckAutoMerge: ToolHandler<z.infer<typeof schemas.PrCheckAutoMergeSchema>> = async (args, { config, db }) => {
+  const prRepo = new PrReviewRepository(db);
+  const pr = await prRepo.findByPrUrl(args.prUrl);
+  if (!pr) return { eligible: false, reason: 'PR not tracked' };
+
+  const evaluator = new AutoMergeEvaluator(config);
+  return evaluator.evaluate(pr);
 };
 
 const handleJulesSessionsList: ToolHandler<z.infer<typeof schemas.JulesSessionsListSchema>> = async (args, { db }) => {
@@ -58,9 +203,8 @@ const handleJulesSessionsList: ToolHandler<z.infer<typeof schemas.JulesSessionsL
   return query.orderBy(desc(julesSessions.createdAt)).limit(limit);
 };
 
-const handleJulesSessionGet: ToolHandler<z.infer<typeof schemas.JulesSessionGetSchema>> = async ({ sessionId }, { db }) => {
-  const result = await db.select().from(julesSessions).where(eq(julesSessions.id, sessionId)).limit(1);
-  return result[0] || { error: 'Session not found' };
+const handleJulesSessionGet: ToolHandler<z.infer<typeof schemas.JulesSessionGetSchema>> = async ({ sessionId }, { services }) => {
+  return services!.jules.getSession(sessionId);
 };
 
 const handleJulesActivitiesList: ToolHandler<z.infer<typeof schemas.JulesActivitiesListSchema>> = async (args, { db }) => {
@@ -97,71 +241,6 @@ const handleReposList: ToolHandler<z.infer<typeof schemas.ReposListSchema>> = as
   return query.orderBy(desc(repos.stars)).limit(limit);
 };
 
-const handlePrMerge: ToolHandler<z.infer<typeof schemas.PrMergeSchema>> = async (args, context) => {
-  const { prUrl, method, force, confirm, expectedHeadSha: _expectedHeadSha } = args;
-
-  if (!confirm && !force) {
-    return {
-      content: [{ type: 'text', text: 'Merge requires confirmation. Please set confirm: true or force: true.' }],
-      isError: true,
-    };
-  }
-
-  const prRepo = new PrReviewRepository(context.db);
-  const pr = await prRepo.findByPrUrl(prUrl);
-
-  if (!pr) {
-    return { merged: false, reason: 'PR review row not found' };
-  }
-
-  if (!force) {
-    const evaluation = context.services.autoMergeEvaluator.evaluate(pr);
-    if (!evaluation.eligible) {
-      return { merged: false, reason: 'PR not eligible for merge', reasons: evaluation.reasons };
-    }
-  }
-
-  return {
-    content: [{ type: 'text', text: `[PLACEHOLDER] Merging ${prUrl} via ${method} (force=${force})` }],
-  };
-};
-
-const handleHealthCheck: ToolHandler = async (_args, { db }) => {
-  const status: Record<string, any> = {
-    database: 'ok',
-    julesApi: 'pending',
-    githubApi: 'pending',
-  };
-
-  try {
-    const result = (db as any).get(sql`SELECT 1`);
-    if (!result) status.database = 'error';
-  } catch (_) {
-    status.database = 'error';
-  }
-
-  return status;
-};
-
-const handleJulesDashboard: ToolHandler<z.infer<typeof schemas.JulesDashboardSchema>> = async (args, context) => {
-  return context.services.dashboard.generate(args);
-};
-
-const handleJulesStatus: ToolHandler = async (_args, context) => {
-  const active = await new SessionRepository(context.db).findActive();
-  const stalled = active.filter((session) => Boolean(session.stallDetectedAt));
-  return {
-    active: active.length,
-    stalled: stalled.length,
-    sessions: active.slice(0, 10).map((session) => ({
-      id: session.id,
-      title: session.title,
-      state: session.state,
-      stallReason: session.stallReason,
-    })),
-  };
-};
-
 // --- Definitions ---
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
@@ -181,7 +260,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['prompt'],
     },
     zodSchema: schemas.JulesCreateSessionSchema,
-    handler: handleNotImplemented,
+    handler: handleJulesCreateSession,
   },
   {
     name: 'jules_sessions_list',
@@ -236,7 +315,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['sessionId'],
     },
     zodSchema: schemas.JulesApprovePlanSchema,
-    handler: handleNotImplemented,
+    handler: handleJulesApprovePlan,
     idempotentHint: true,
   },
   {
@@ -253,7 +332,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['sessionId', 'message'],
     },
     zodSchema: schemas.JulesSendMessageSchema,
-    handler: handleNotImplemented,
+    handler: handleJulesSendMessage,
   },
   {
     name: 'jules_get_diff',
@@ -267,7 +346,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['sessionId'],
     },
     zodSchema: schemas.JulesGetDiffSchema,
-    handler: handleNotImplemented,
+    handler: handleJulesGetDiff,
     readOnlyHint: true,
   },
   {
@@ -279,7 +358,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['sessionId'],
     },
     zodSchema: schemas.JulesGetBashOutputsSchema,
-    handler: handleNotImplemented,
+    handler: handleJulesGetBashOutputs,
     readOnlyHint: true,
   },
   {
@@ -315,14 +394,14 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
     zodSchema: schemas.JulesPollSchema,
-    handler: handleNotImplemented,
+    handler: handleJulesPoll,
   },
   {
     name: 'jules_detect_stalls',
     description: 'Analyze sessions for stall patterns.',
     inputSchema: { type: 'object', properties: {} },
     zodSchema: schemas.JulesDetectStallsSchema,
-    handler: handleNotImplemented,
+    handler: handleJulesDetectStalls,
     readOnlyHint: true,
   },
   {
@@ -336,7 +415,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
     zodSchema: schemas.RepoSyncSchema,
-    handler: handleNotImplemented,
+    handler: handleRepoSync,
   },
   {
     name: 'pr_reviews_list',
@@ -379,7 +458,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
     zodSchema: schemas.PrReviewStatusSchema_Tool,
-    handler: handleNotImplemented,
+    handler: handlePrReviewStatus,
     readOnlyHint: true,
   },
   {
@@ -395,7 +474,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['prUrl'],
     },
     zodSchema: schemas.PrUpdateReviewSchema,
-    handler: handleNotImplemented,
+    handler: handlePrUpdateReview,
   },
   {
     name: 'pr_check_auto_merge',
@@ -405,7 +484,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: { prUrl: { type: 'string' } },
     },
     zodSchema: schemas.PrCheckAutoMergeSchema,
-    handler: handleNotImplemented,
+    handler: handlePrCheckAutoMerge,
     readOnlyHint: true,
   },
   {
