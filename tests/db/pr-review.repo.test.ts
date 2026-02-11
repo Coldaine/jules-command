@@ -6,7 +6,7 @@ import { makePrReview, makeAutoMergeEligiblePR } from '../fixtures/pr-reviews.js
 import { makeSession } from '../fixtures/sessions.js';
 
 describe('PrReviewRepository', () => {
-  let db: any;
+  let _db: any;
   let prReview: PrReviewRepository;
   let session: SessionRepository;
 

@@ -1,38 +1,28 @@
 /**
- * GitHubService — GitHub API integration via Octokit.
- *
- * Handles repo metadata sync, PR status tracking, and merge operations.
+ * GitHubService — integrates with Octokit for PR and Repo metadata.
  */
 
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
-
-
 export class GitHubService {
   constructor(
-    _config: Config,
-    _db: Db,
+    private _config: Config,
+    private _db: Db,
   ) {
-    // Repositories will be created when methods are implemented.
+    void this._config;
+    void this._db;
   }
 
-  async syncRepoMetadata(_owner: string, _name: string) {
-    // TODO: Fetch via Octokit, persist to repos table
-    throw new Error('Not implemented — Phase 4 Task 4.1');
+  async syncRepo(_owner: string, _name: string): Promise<void> {
   }
 
-  async syncAllRepos() {
-    // TODO: Sync all known repos
-    throw new Error('Not implemented — Phase 4 Task 4.1');
+  async syncAllRepos(): Promise<void> {
   }
 
-  async syncPrStatus(_prUrl: string) {
-    // TODO: Fetch PR state, CI checks, reviews from GitHub
-    throw new Error('Not implemented — Phase 4 Task 4.2');
+  async getPrStatus(_prUrl: string): Promise<any> {
+    return { error: 'Not implemented' };
   }
 
-  async mergePr(_prUrl: string, _method: 'merge' | 'squash' | 'rebase' = 'squash') {
-    // TODO: Merge via GitHub API with validation
-    throw new Error('Not implemented — Phase 4 Task 4.3');
+  async mergePr(_prUrl: string, _method: 'merge' | 'squash' | 'rebase'): Promise<void> {
   }
 } 

@@ -2,13 +2,14 @@
  * PollManager — orchestrates polling cycles for Jules sessions and GitHub PRs.
  */
 
-import type { Config } from '../config.js';
-import type { Db } from '../db/index.js';
-import { SessionRepository } from '../db/repositories/session.repo.js';
-import { PollCursorRepository } from '../db/repositories/poll-cursor.repo.js';
-import { ActivityRepository } from '../db/repositories/activity.repo.js';
-import { StallDetector, type StallInfo } from './stall-detector.js';
-
+import type { Config } from "../config.js";
+import type { Db } from "../db/index.js";
+import { SessionRepository } from "../db/repositories/session.repo.js";
+import { PollCursorRepository } from "../db/repositories/poll-cursor.repo.js";
+import { ActivityRepository } from "../db/repositories/activity.repo.js";
+import { StallDetector, type StallInfo } from "./stall-detector.js";
+import type { JulesService } from "./jules.service.js";
+import type { GitHubService } from "./github.service.js";
 
 export interface PollResult {
   sessionId: string;
@@ -26,22 +27,21 @@ export interface PollSummary {
 }
 
 export class PollManager {
-  private config: Config;
   private sessionRepo: SessionRepository;
   private cursorRepo: PollCursorRepository;
   private activityRepo: ActivityRepository;
   private stallDetector: StallDetector;
 
   constructor(
-    config: Config,
+    private _jules: JulesService,
+    private _github: GitHubService,
+    private _config: Config,
     db: Db,
   ) {
-    this.config = config;
-
     this.sessionRepo = new SessionRepository(db);
     this.cursorRepo = new PollCursorRepository(db);
     this.activityRepo = new ActivityRepository(db);
-    this.stallDetector = new StallDetector(config);
+    this.stallDetector = new StallDetector(_config);
   }
 
   async pollSession(sessionId: string): Promise<PollResult> {
@@ -63,7 +63,7 @@ export class PollManager {
       const existingCursor = await this.cursorRepo.findById(sessionId);
       await this.cursorRepo.upsert({
         id: sessionId,
-        pollType: existingCursor?.pollType ?? 'session',
+        pollType: existingCursor?.pollType ?? "session",
         lastPollAt: now,
         pollCount: (existingCursor?.pollCount ?? 0) + 1,
         lastActivitySeenAt: existingCursor?.lastActivitySeenAt ?? null,
@@ -123,8 +123,8 @@ export class PollManager {
         summary.errors.push({ sessionId: session.id, error: result.error });
       }
 
-      if (this.config.pollDelayBetweenSessionsMs > 0) {
-        await this.sleep(this.config.pollDelayBetweenSessionsMs);
+      if (this._config.pollDelayBetweenSessionsMs > 0) {
+        await this.sleep(this._config.pollDelayBetweenSessionsMs);
       }
     }
 
@@ -135,3 +135,4 @@ export class PollManager {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
+

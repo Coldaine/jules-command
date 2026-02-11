@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from '../setup.js';
 import { ActivityRepository } from '@/db/repositories/activity.repo.js';
 import { SessionRepository } from '@/db/repositories/session.repo.js';
-import { makeActivity, makePlanActivity, makeAgentMessageActivity } from '../fixtures/activities.js';
+import { makeActivity, makePlanActivity,   } from '../fixtures/activities.js';
 import { makeSession } from '../fixtures/sessions.js';
 
 describe('ActivityRepository', () => {
-  let db: any;
+  let _db: any;
   let repo: ActivityRepository;
   let sessionRepo: SessionRepository;
 

@@ -1,7 +1,3 @@
-/**
- * Dashboard — aggregates data from DB into a formatted markdown summary.
- */
-
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
 import { SessionRepository } from '../db/repositories/session.repo.js';
@@ -80,5 +76,10 @@ export class DashboardService {
     lines.push('', `Thresholds: queue>${this.config.stallQueueTimeoutMin}m, no-progress>${this.config.stallNoProgressTimeoutMin}m`);
 
     return lines.join('\n');
+  }
+
+  async generateCompact(): Promise<string> {
+    const active = await this.sessionRepo.findActive();
+    return `Jules: ${active.length} active sessions, ${active.filter(s => !!s.stallDetectedAt).length} stalled.`;
   }
 }
