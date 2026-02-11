@@ -1,7 +1,5 @@
 /**
  * Database migration runner.
- *
- * Run with: npx tsx src/db/migrate.ts
  */
 
 import Database from 'better-sqlite3';
@@ -11,17 +9,11 @@ import { fileURLToPath } from 'url';
 
 /**
  * Run database migrations on the provided SQLite database instance.
- * TODO: Add structured logging (JSON format) for better observability
- * TODO: Add audit logging for compliance tracking
  */
 export function migrate(db: Database.Database): void {
   try {
-    // Enable foreign keys and WAL mode
     db.pragma('foreign_keys = ON');
     db.pragma('journal_mode = WAL');
-
-  // For initial setup we use raw SQL to create tables + indexes.
-  // Drizzle migrations can be added later via drizzle-kit.
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS repos (
@@ -69,7 +61,9 @@ export function migrate(db: Database.Database): void {
       activity_type TEXT NOT NULL,
       timestamp TEXT NOT NULL,
       content TEXT,
-      metadata TEXT
+      metadata TEXT,
+      has_bash_output INTEGER DEFAULT 0,
+      progress_description TEXT
     );
 
     CREATE TABLE IF NOT EXISTS pr_reviews (
@@ -77,7 +71,7 @@ export function migrate(db: Database.Database): void {
       pr_url TEXT NOT NULL UNIQUE,
       pr_number INTEGER NOT NULL,
       repo_id TEXT REFERENCES repos(id) ON DELETE CASCADE,
-      session_id TEXT REFERENCES jules_sessions(id) ON DELETE CASCADE,
+      session_id TEXT REFERENCES jules_sessions(id) ON DELETE SET NULL,
       pr_title TEXT,
       pr_description TEXT,
       pr_state TEXT,
@@ -128,7 +122,6 @@ export function migrate(db: Database.Database): void {
   }
 }
 
-// CLI runner - fixed for ESM compatibility
 if (fileURLToPath(import.meta.url) === process.argv[1]) {
   const config = loadConfig();
   const { sqlite } = createDb(config.databasePath);

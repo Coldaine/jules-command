@@ -4,7 +4,7 @@ import { SessionRepository } from '@/db/repositories/session.repo.js';
 import { makeSession } from '../fixtures/sessions.js';
 
 describe('SessionRepository', () => {
-  let db: any;
+  let _db: any;
   let repo: SessionRepository;
 
   beforeEach(() => {

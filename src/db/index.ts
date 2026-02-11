@@ -5,14 +5,21 @@
  */
 
 import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { drizzle, BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema.js';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-export function createDb(databasePath: string): { db: any; sqlite: any } {
+export interface DbInstance {
+  db: BetterSQLite3Database<typeof schema>;
+  sqlite: Database.Database;
+}
+
+export function createDb(databasePath: string): DbInstance {
   // Ensure data directory exists
-  mkdirSync(dirname(databasePath), { recursive: true });
+  if (databasePath !== ':memory:') {
+    mkdirSync(dirname(databasePath), { recursive: true });
+  }
 
   const sqlite = new Database(databasePath);
   sqlite.pragma('journal_mode = WAL');
@@ -22,4 +29,4 @@ export function createDb(databasePath: string): { db: any; sqlite: any } {
   return { db, sqlite };
 }
 
-export type Db = ReturnType<typeof createDb>['db'];
+export type Db = DbInstance['db'];

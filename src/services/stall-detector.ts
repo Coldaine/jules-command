@@ -56,7 +56,7 @@ export class StallDetector {
 
     const recentActivities = activities.slice(0, this.config.stallConsecutiveErrors);
     const allErrors = recentActivities.every((a) =>
-      a.activityType === 'bash_output' && (a.content ?? '').includes('Exit Code: 1')
+      a.hasBashOutput && (a.progressDescription ?? '').includes('Exit Code: 1')
     );
     if (allErrors && recentActivities.length >= this.config.stallConsecutiveErrors) {
       return this.makeStall(session, 'repeated_errors', ageMinutes,
