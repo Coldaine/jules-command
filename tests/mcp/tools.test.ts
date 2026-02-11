@@ -62,12 +62,16 @@ describe('MCP Tools Integration', () => {
 
     describe('jules_list_sessions', () => {
       it.skip('should list sessions from database', async () => {
+        const now = new Date().toISOString();
         await sessionRepo.upsert({
           id: 'session-1',
           title: 'Test Session',
+          prompt: 'Test prompt',
           state: 'in_progress',
-          repo: 'owner/repo',
-          branch: 'main',
+          repoId: 'owner/repo',
+          sourceBranch: 'main',
+          createdAt: now,
+          updatedAt: now,
         });
 
         // TODO: Call tool handler
@@ -76,19 +80,26 @@ describe('MCP Tools Integration', () => {
       });
 
       it.skip('should filter by state', async () => {
+        const now = new Date().toISOString();
         await sessionRepo.upsert({
           id: 'session-1',
           title: 'In Progress',
+          prompt: 'Test prompt 1',
           state: 'in_progress',
-          repo: 'owner/repo',
-          branch: 'main',
+          repoId: 'owner/repo',
+          sourceBranch: 'main',
+          createdAt: now,
+          updatedAt: now,
         });
         await sessionRepo.upsert({
           id: 'session-2',
           title: 'Completed',
+          prompt: 'Test prompt 2',
           state: 'completed',
-          repo: 'owner/repo',
-          branch: 'main',
+          repoId: 'owner/repo',
+          sourceBranch: 'main',
+          createdAt: now,
+          updatedAt: now,
         });
 
         // TODO: Call tool with state filter
@@ -98,12 +109,16 @@ describe('MCP Tools Integration', () => {
 
     describe('jules_get_session', () => {
       it.skip('should fetch and return session details', async () => {
+        const now = new Date().toISOString();
         await sessionRepo.upsert({
           id: 'session-1',
           title: 'Test Session',
+          prompt: 'Test prompt',
           state: 'in_progress',
-          repo: 'owner/repo',
-          branch: 'main',
+          repoId: 'owner/repo',
+          sourceBranch: 'main',
+          createdAt: now,
+          updatedAt: now,
         });
 
         // TODO: Call tool handler with sessionId
@@ -180,12 +195,16 @@ describe('MCP Tools Integration', () => {
   describe('Task 7.3: Dashboard & Orchestration Tools', () => {
     describe('jules_dashboard', () => {
       it.skip('should call DashboardService.generate', async () => {
+        const now = new Date().toISOString();
         await sessionRepo.upsert({
           id: 'session-1',
           title: 'Test Session',
+          prompt: 'Test prompt',
           state: 'in_progress',
-          repo: 'owner/repo',
-          branch: 'main',
+          repoId: 'owner/repo',
+          sourceBranch: 'main',
+          createdAt: now,
+          updatedAt: now,
         });
 
         // TODO: Call tool handler
@@ -233,12 +252,15 @@ describe('MCP Tools Integration', () => {
 
     describe('jules_detect_stalls', () => {
       it.skip('should detect stalled sessions', async () => {
+        const now = new Date().toISOString();
         await sessionRepo.upsert({
           id: 'session-1',
           title: 'Stalled',
+          prompt: 'Test stall detection',
           state: 'awaiting_plan_approval',
-          repo: 'owner/repo',
-          branch: 'main',
+          repoId: 'owner/repo',
+          sourceBranch: 'main',
+          createdAt: now,
           updatedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
         });
 
@@ -279,7 +301,6 @@ describe('MCP Tools Integration', () => {
           filesChanged: 3,
           testFilesChanged: 1,
           criticalFilesTouched: false,
-          dependencyFilesTouched: false,
           complexityScore: 0.2,
         });
 
@@ -327,7 +348,6 @@ describe('MCP Tools Integration', () => {
           filesChanged: 3,
           testFilesChanged: 1,
           criticalFilesTouched: false,
-          dependencyFilesTouched: false,
           complexityScore: 0.2,
         });
 
@@ -361,7 +381,7 @@ describe('MCP Tools Integration', () => {
       });
     });
 
-    describe('repo_sync', () => {
+    describe('jules_repo_sync', () => {
       it.skip('should call GitHubService.syncRepoMetadata', async () => {
         // TODO: Mock GitHubService
         // Call tool handler with repos

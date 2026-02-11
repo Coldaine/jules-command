@@ -61,12 +61,16 @@ describe('End-to-End Integration Tests', () => {
        */
 
       // Step 1: Create session
+      const now = new Date().toISOString();
       await sessionRepo.upsert({
         id: 'e2e-session-1',
         title: 'E2E Test Session',
+        prompt: 'E2E lifecycle test',
         state: 'queued',
-        repo: 'owner/repo',
-        branch: 'main',
+        repoId: 'owner/repo',
+        sourceBranch: 'main',
+        createdAt: now,
+        updatedAt: now,
       });
 
       // Step 2: First poll - session awaiting plan approval
@@ -77,7 +81,10 @@ describe('End-to-End Integration Tests', () => {
       // Step 3: Approve plan
       await sessionRepo.upsert({
         id: 'e2e-session-1',
+        prompt: 'E2E lifecycle test',
         state: 'in_progress',
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
       });
 
       // Step 4: Poll - session in progress
@@ -87,8 +94,11 @@ describe('End-to-End Integration Tests', () => {
       // Step 5: Poll - session completed with PR
       await sessionRepo.upsert({
         id: 'e2e-session-1',
+        prompt: 'E2E lifecycle test',
         state: 'completed',
         prUrl: 'https://github.com/owner/repo/pull/123',
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
       });
 
       session = await sessionRepo.findById('e2e-session-1');
@@ -118,7 +128,6 @@ describe('End-to-End Integration Tests', () => {
         filesChanged: 3,
         testFilesChanged: 1,
         criticalFilesTouched: false,
-        dependencyFilesTouched: false,
         complexityScore: complexityResult.score,
       });
 
@@ -134,6 +143,7 @@ describe('End-to-End Integration Tests', () => {
       await prReviewRepo.upsert({
         sessionId: 'e2e-session-1',
         prUrl: 'https://github.com/owner/repo/pull/123',
+        prNumber: 123,
         mergedAt: new Date().toISOString(),
       });
 
@@ -143,29 +153,33 @@ describe('End-to-End Integration Tests', () => {
 
     it.skip('should handle lifecycle with activities', async () => {
       // Create session
+      const now = new Date().toISOString();
       await sessionRepo.upsert({
         id: 'e2e-session-2',
         title: 'Session with Activities',
+        prompt: 'Test activities lifecycle',
         state: 'in_progress',
-        repo: 'owner/repo',
-        branch: 'main',
+        repoId: 'owner/repo',
+        sourceBranch: 'main',
+        createdAt: now,
+        updatedAt: now,
       });
 
       // Add activities during progress
       await activityRepo.insertMany([
         {
+          id: 'activity-1',
           sessionId: 'e2e-session-2',
           activityType: 'bash_output',
-          createdAt: new Date().toISOString(),
-          progressDescription: 'Running tests',
-          hasBashOutput: true,
+          timestamp: new Date().toISOString(),
+          content: 'Running tests',
         },
         {
+          id: 'activity-2',
           sessionId: 'e2e-session-2',
-          activityType: 'user_message',
-          createdAt: new Date().toISOString(),
-          progressDescription: 'User feedback',
-          hasBashOutput: false,
+          activityType: 'message',
+          timestamp: new Date().toISOString(),
+          content: 'User feedback',
         },
       ]);
 
@@ -175,22 +189,26 @@ describe('End-to-End Integration Tests', () => {
 
     it.skip('should maintain data integrity across lifecycle', async () => {
       // Verify foreign key relationships
+      const now = new Date().toISOString();
       await sessionRepo.upsert({
         id: 'e2e-session-3',
         title: 'Integrity Test',
+        prompt: 'Test data integrity',
         state: 'completed',
-        repo: 'owner/repo',
-        branch: 'main',
+        repoId: 'owner/repo',
+        sourceBranch: 'main',
         prUrl: 'https://github.com/owner/repo/pull/456',
+        createdAt: now,
+        updatedAt: now,
       });
 
       await activityRepo.insertMany([
         {
+          id: 'activity-3',
           sessionId: 'e2e-session-3',
           activityType: 'bash_output',
-          createdAt: new Date().toISOString(),
-          progressDescription: 'Test activity',
-          hasBashOutput: false,
+          timestamp: new Date().toISOString(),
+          content: 'Test activity',
         },
       ]);
 
@@ -207,7 +225,6 @@ describe('End-to-End Integration Tests', () => {
         filesChanged: 2,
         testFilesChanged: 1,
         criticalFilesTouched: false,
-        dependencyFilesTouched: false,
         complexityScore: 0.15,
       });
 
@@ -235,12 +252,15 @@ describe('End-to-End Integration Tests', () => {
        */
 
       // Step 1: Create session in stalled state
+      const now = new Date().toISOString();
       await sessionRepo.upsert({
         id: 'stall-session-1',
         title: 'Stalled Session',
+        prompt: 'Test stall recovery',
         state: 'awaiting_plan_approval',
-        repo: 'owner/repo',
-        branch: 'main',
+        repoId: 'owner/repo',
+        sourceBranch: 'main',
+        createdAt: now,
         updatedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(), // 40 min ago
       });
 
@@ -254,29 +274,35 @@ describe('End-to-End Integration Tests', () => {
       // Mark as stalled
       await sessionRepo.upsert({
         id: 'stall-session-1',
-        stalledAt: new Date().toISOString(),
+        prompt: 'Test stall recovery',
+        state: 'awaiting_plan_approval',
+        stallDetectedAt: new Date().toISOString(),
         stallReason: 'plan_approval_timeout',
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
       });
 
       let session = await sessionRepo.findById('stall-session-1');
-      expect(session?.stalledAt).toBeTruthy();
+      expect(session?.stallDetectedAt).toBeTruthy();
       expect(session?.stallReason).toBe('plan_approval_timeout');
 
       // Step 3: Send help message (mocked)
       await activityRepo.insertMany([
         {
+          id: 'stall-activity-1',
           sessionId: 'stall-session-1',
-          activityType: 'user_message',
-          createdAt: new Date().toISOString(),
-          progressDescription: 'Help message sent to unstall session',
-          hasBashOutput: false,
+          activityType: 'message',
+          timestamp: new Date().toISOString(),
+          content: 'Help message sent to unstall session',
         },
       ]);
 
       // Step 4: Session resumes
       await sessionRepo.upsert({
         id: 'stall-session-1',
+        prompt: 'Test stall recovery',
         state: 'in_progress',
+        createdAt: now,
         updatedAt: new Date().toISOString(),
       });
 
@@ -286,39 +312,53 @@ describe('End-to-End Integration Tests', () => {
       // Step 5: Session completes
       await sessionRepo.upsert({
         id: 'stall-session-1',
+        prompt: 'Test stall recovery',
         state: 'completed',
         prUrl: 'https://github.com/owner/repo/pull/789',
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
       });
 
       // Step 6: Verify stall flag cleared
       await sessionRepo.upsert({
         id: 'stall-session-1',
-        stalledAt: null,
+        prompt: 'Test stall recovery',
+        state: 'completed',
+        stallDetectedAt: null,
         stallReason: null,
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
       });
 
       session = await sessionRepo.findById('stall-session-1');
       expect(session?.state).toBe('completed');
-      expect(session?.stalledAt).toBeNull();
+      expect(session?.stallDetectedAt).toBeNull();
       expect(session?.stallReason).toBeNull();
     });
 
     it.skip('should handle multiple stall-recovery cycles', async () => {
       // Create session
+      const now = new Date().toISOString();
       await sessionRepo.upsert({
         id: 'multi-stall-session',
         title: 'Multi-Stall Session',
+        prompt: 'Test multiple stall cycles',
         state: 'queued',
-        repo: 'owner/repo',
-        branch: 'main',
+        repoId: 'owner/repo',
+        sourceBranch: 'main',
         createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        updatedAt: now,
       });
 
       // First stall: queue timeout
       await sessionRepo.upsert({
         id: 'multi-stall-session',
-        stalledAt: new Date().toISOString(),
+        prompt: 'Test multiple stall cycles',
+        state: 'queued',
+        stallDetectedAt: new Date().toISOString(),
         stallReason: 'queue_timeout',
+        createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       let session = await sessionRepo.findById('multi-stall-session');
@@ -327,16 +367,23 @@ describe('End-to-End Integration Tests', () => {
       // Recovery 1
       await sessionRepo.upsert({
         id: 'multi-stall-session',
+        prompt: 'Test multiple stall cycles',
         state: 'in_progress',
-        stalledAt: null,
+        stallDetectedAt: null,
         stallReason: null,
+        createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       // Second stall: no progress
       await sessionRepo.upsert({
         id: 'multi-stall-session',
-        stalledAt: new Date().toISOString(),
+        prompt: 'Test multiple stall cycles',
+        state: 'in_progress',
+        stallDetectedAt: new Date().toISOString(),
         stallReason: 'no_progress',
+        createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       session = await sessionRepo.findById('multi-stall-session');
@@ -345,52 +392,58 @@ describe('End-to-End Integration Tests', () => {
       // Final recovery
       await sessionRepo.upsert({
         id: 'multi-stall-session',
+        prompt: 'Test multiple stall cycles',
         state: 'completed',
-        stalledAt: null,
+        stallDetectedAt: null,
         stallReason: null,
+        createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       session = await sessionRepo.findById('multi-stall-session');
       expect(session?.state).toBe('completed');
-      expect(session?.stalledAt).toBeNull();
+      expect(session?.stallDetectedAt).toBeNull();
     });
 
     it.skip('should track stall history in activities', async () => {
+      const now = new Date().toISOString();
       await sessionRepo.upsert({
         id: 'history-session',
         title: 'History Tracking',
+        prompt: 'Test stall history tracking',
         state: 'awaiting_plan_approval',
-        repo: 'owner/repo',
-        branch: 'main',
+        repoId: 'owner/repo',
+        sourceBranch: 'main',
+        createdAt: now,
         updatedAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
       });
 
       // Record stall detection
       await activityRepo.insertMany([
         {
+          id: 'history-activity-1',
           sessionId: 'history-session',
-          activityType: 'system_event',
-          createdAt: new Date().toISOString(),
-          progressDescription: 'Stall detected: plan_approval_timeout',
-          hasBashOutput: false,
+          activityType: 'message',
+          timestamp: new Date().toISOString(),
+          content: 'Stall detected: plan_approval_timeout',
         },
       ]);
 
       // Record recovery
       await activityRepo.insertMany([
         {
+          id: 'history-activity-2',
           sessionId: 'history-session',
-          activityType: 'system_event',
-          createdAt: new Date().toISOString(),
-          progressDescription: 'Stall cleared: session resumed',
-          hasBashOutput: false,
+          activityType: 'message',
+          timestamp: new Date().toISOString(),
+          content: 'Stall cleared: session resumed',
         },
       ]);
 
       const activities = await activityRepo.findBySessionId('history-session');
       expect(activities.length).toBe(2);
-      expect(activities.some(a => a.progressDescription?.includes('Stall detected'))).toBe(true);
-      expect(activities.some(a => a.progressDescription?.includes('Stall cleared'))).toBe(true);
+      expect(activities.some(a => a.content?.includes('Stall detected'))).toBe(true);
+      expect(activities.some(a => a.content?.includes('Stall cleared'))).toBe(true);
     });
   });
 
@@ -398,14 +451,18 @@ describe('End-to-End Integration Tests', () => {
     it.skip('should handle concurrent sessions', async () => {
       // Create multiple sessions
       const sessionIds = ['concurrent-1', 'concurrent-2', 'concurrent-3'];
+      const now = new Date().toISOString();
       
       for (const id of sessionIds) {
         await sessionRepo.upsert({
           id,
           title: `Concurrent Session ${id}`,
+          prompt: `Concurrent task ${id}`,
           state: 'in_progress',
-          repo: 'owner/repo',
-          branch: `feature-${id}`,
+          repoId: 'owner/repo',
+          sourceBranch: `feature-${id}`,
+          createdAt: now,
+          updatedAt: now,
         });
       }
 
@@ -415,13 +472,17 @@ describe('End-to-End Integration Tests', () => {
 
     it.skip('should handle session with failed CI and recovery', async () => {
       // Create session with completed PR
+      const now = new Date().toISOString();
       await sessionRepo.upsert({
         id: 'ci-fail-session',
         title: 'CI Failure Session',
+        prompt: 'Test CI failure recovery',
         state: 'completed',
-        repo: 'owner/repo',
-        branch: 'main',
+        repoId: 'owner/repo',
+        sourceBranch: 'main',
         prUrl: 'https://github.com/owner/repo/pull/999',
+        createdAt: now,
+        updatedAt: now,
       });
 
       // PR with failing CI
@@ -438,7 +499,6 @@ describe('End-to-End Integration Tests', () => {
         filesChanged: 3,
         testFilesChanged: 1,
         criticalFilesTouched: false,
-        dependencyFilesTouched: false,
         complexityScore: 0.2,
       });
 
@@ -454,6 +514,7 @@ describe('End-to-End Integration Tests', () => {
       await prReviewRepo.upsert({
         sessionId: 'ci-fail-session',
         prUrl: 'https://github.com/owner/repo/pull/999',
+        prNumber: 999,
         ciStatus: 'success',
       });
 

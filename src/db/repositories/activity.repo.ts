@@ -2,7 +2,7 @@
  * ActivityRepository — CRUD for jules_activities table.
  */
 
-import { eq, desc, and, gt } from 'drizzle-orm';
+import { eq, and, gt, desc } from 'drizzle-orm';
 import type { Db } from '../index.js';
 import { julesActivities } from '../schema.js';
 
@@ -14,7 +14,6 @@ export class ActivityRepository {
 
   async insertMany(activities: ActivityInsert[]): Promise<void> {
     if (activities.length === 0) return;
-    // Use INSERT OR IGNORE to handle duplicates
     for (const activity of activities) {
       await this.db
         .insert(julesActivities)
@@ -32,7 +31,7 @@ export class ActivityRepository {
       .limit(limit);
   }
 
-  async findBySessionAndType(sessionId: string, type: string): Promise<ActivityRow[]> {
+  async findBySessionAndType(sessionId: string, type: string, limit = 50): Promise<ActivityRow[]> {
     return this.db
       .select()
       .from(julesActivities)
@@ -42,10 +41,11 @@ export class ActivityRepository {
           eq(julesActivities.activityType, type),
         )
       )
-      .orderBy(desc(julesActivities.timestamp));
+      .orderBy(desc(julesActivities.timestamp))
+      .limit(limit);
   }
 
-  async findSince(sessionId: string, since: string): Promise<ActivityRow[]> {
+  async findSince(sessionId: string, since: string, limit = 50): Promise<ActivityRow[]> {
     return this.db
       .select()
       .from(julesActivities)
@@ -55,6 +55,26 @@ export class ActivityRepository {
           gt(julesActivities.timestamp, since),
         )
       )
-      .orderBy(desc(julesActivities.timestamp));
+      .orderBy(desc(julesActivities.timestamp))
+      .limit(limit);
+  }
+
+  async findRecent(limit = 50, type?: string): Promise<ActivityRow[]> {
+    const base = this.db
+      .select()
+      .from(julesActivities)
+      .orderBy(desc(julesActivities.timestamp))
+      .limit(limit);
+
+    if (!type) {
+      return base;
+    }
+
+    return this.db
+      .select()
+      .from(julesActivities)
+      .where(eq(julesActivities.activityType, type))
+      .orderBy(desc(julesActivities.timestamp))
+      .limit(limit);
   }
 }

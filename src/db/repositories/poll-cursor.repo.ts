@@ -2,7 +2,7 @@
  * PollCursorRepository — CRUD for poll_cursors table.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Db } from '../index.js';
 import { pollCursors } from '../schema.js';
 
@@ -32,15 +32,16 @@ export class PollCursorRepository {
   }
 
   async incrementPollCount(id: string): Promise<void> {
-    const cursor = await this.findById(id);
-    if (cursor) {
-      await this.db
-        .update(pollCursors)
-        .set({
-          pollCount: (cursor.pollCount ?? 0) + 1,
-          lastPollAt: new Date().toISOString(),
-        })
-        .where(eq(pollCursors.id, id));
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new Error(`Poll cursor not found: ${id}`);
     }
+    await this.db
+      .update(pollCursors)
+      .set({
+        pollCount: sql`COALESCE(${pollCursors.pollCount}, 0) + 1`,
+        lastPollAt: new Date().toISOString(),
+      })
+      .where(eq(pollCursors.id, id));
   }
 }

@@ -9,8 +9,6 @@ import { julesSessions } from '../schema.js';
 export type SessionRow = typeof julesSessions.$inferSelect;
 export type SessionInsert = typeof julesSessions.$inferInsert;
 
-const TERMINAL_STATES = ['completed', 'failed'] as const;
-
 export class SessionRepository {
   constructor(private db: Db) {}
 
@@ -44,6 +42,15 @@ export class SessionRepository {
       .orderBy(desc(julesSessions.createdAt));
   }
 
+  async findByRepoId(repoId: string, limit = 50): Promise<SessionRow[]> {
+    return this.db
+      .select()
+      .from(julesSessions)
+      .where(eq(julesSessions.repoId, repoId))
+      .orderBy(desc(julesSessions.createdAt))
+      .limit(limit);
+  }
+
   async findActive(): Promise<SessionRow[]> {
     return this.db
       .select()
@@ -55,10 +62,11 @@ export class SessionRepository {
       .orderBy(desc(julesSessions.createdAt));
   }
 
-  async findAll(): Promise<SessionRow[]> {
-    return this.db
+  async findAll(limit?: number): Promise<SessionRow[]> {
+    const query = this.db
       .select()
       .from(julesSessions)
       .orderBy(desc(julesSessions.createdAt));
+    return typeof limit === 'number' ? query.limit(limit) : query;
   }
 }

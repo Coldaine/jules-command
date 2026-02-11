@@ -103,10 +103,9 @@ describe('PollCursorRepository', () => {
       expect(found?.pollCount).toBe(8);
     });
 
-    it('does nothing when cursor does not exist', async () => {
-      await pollCursor.incrementPollCount('nonexistent-cursor');
-      const found = await pollCursor.findById('nonexistent-cursor');
-      expect(found).toBeUndefined();
+    it('throws when cursor does not exist', async () => {
+      await expect(pollCursor.incrementPollCount('nonexistent-cursor'))
+        .rejects.toThrow('Poll cursor not found: nonexistent-cursor');
     });
   });
 

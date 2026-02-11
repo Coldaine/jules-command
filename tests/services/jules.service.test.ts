@@ -62,7 +62,7 @@ describe('JulesService', () => {
       // TODO: Test filtering by repo
       const sessions = await service.listSessions({ repo: 'owner/repo' });
       
-      expect(sessions.every(s => s.repo === 'owner/repo')).toBe(true);
+      expect(sessions.every(s => s.repoId === 'owner/repo')).toBe(true);
     });
 
     it.skip('should limit number of results', async () => {
@@ -119,7 +119,7 @@ describe('JulesService', () => {
         since: '2024-01-01T00:00:00Z' 
       });
       
-      expect(activities.every(a => a.createdAt >= '2024-01-01T00:00:00Z')).toBe(true);
+      expect(activities.every(a => a.timestamp >= '2024-01-01T00:00:00Z')).toBe(true);
     });
   });
 
@@ -220,8 +220,8 @@ describe('JulesService', () => {
       
       const activities = await service.getActivities('test-session-id');
       expect(activities.some(a => 
-        a.activityType === 'user_message' && 
-        a.progressDescription?.includes('Test message')
+        a.activityType === 'message' && 
+        a.content?.includes('Test message')
       )).toBe(true);
     });
 
@@ -253,7 +253,7 @@ describe('JulesService', () => {
       const outputs = await service.getBashOutputs('test-session-id');
       
       expect(Array.isArray(outputs)).toBe(true);
-      expect(outputs.every(o => o.hasBashOutput)).toBe(true);
+      expect(outputs.every(o => o.activityType === 'bash_output')).toBe(true);
     });
 
     it.skip('should get session snapshot with aggregated data', async () => {

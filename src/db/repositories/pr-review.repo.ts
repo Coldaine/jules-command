@@ -2,7 +2,7 @@
  * PrReviewRepository — CRUD for pr_reviews table.
  */
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import type { Db } from '../index.js';
 import { prReviews } from '../schema.js';
 
@@ -40,6 +40,17 @@ export class PrReviewRepository {
     return rows[0];
   }
 
+
+  async findByReviewStatuses(statuses: string[]): Promise<PrReviewRow[]> {
+    if (statuses.length === 0) {
+      return [];
+    }
+
+    return this.db
+      .select()
+      .from(prReviews)
+      .where(inArray(prReviews.reviewStatus, statuses));
+  }
   async findPending(): Promise<PrReviewRow[]> {
     return this.db
       .select()
