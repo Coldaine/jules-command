@@ -16,7 +16,7 @@ import type { Config } from '../../config.js';
 export interface ToolContext {
   db: Db;
   config: Config;
-  services?: {
+  services: {
     jules: JulesService;
     github: GitHubService;
     stallDetector: StallDetector;
@@ -43,36 +43,36 @@ export interface ToolDefinition<TInput = any> {
 // --- Handlers ---
 
 const handleJulesCreateSession: ToolHandler<z.infer<typeof schemas.JulesCreateSessionSchema>> = async (args, { services }) => {
-  return services!.jules.createSession(args);
+  return services.jules.createSession(args);
 };
 
 const handleJulesApprovePlan: ToolHandler<z.infer<typeof schemas.JulesApprovePlanSchema>> = async (args, { services }) => {
-  await services!.jules.approvePlan(args.sessionId);
+  await services.jules.approvePlan(args.sessionId);
   return { success: true };
 };
 
 const handleJulesSendMessage: ToolHandler<z.infer<typeof schemas.JulesSendMessageSchema>> = async (args, { services }) => {
-  await services!.jules.sendMessage(args.sessionId, args.message);
+  await services.jules.sendMessage(args.sessionId, args.message);
   return { success: true };
 };
 
 const handleJulesGetDiff: ToolHandler<z.infer<typeof schemas.JulesGetDiffSchema>> = async (args, { services }) => {
-  return services!.jules.getDiff(args.sessionId, args.file);
+  return services.jules.getDiff(args.sessionId, args.file);
 };
 
 const handleJulesGetBashOutputs: ToolHandler<z.infer<typeof schemas.JulesGetBashOutputsSchema>> = async (args, { services }) => {
-  return services!.jules.getBashOutputs(args.sessionId);
+  return services.jules.getBashOutputs(args.sessionId);
 };
 
 const handleRepoSync: ToolHandler<z.infer<typeof schemas.RepoSyncSchema>> = async (args, { services }) => {
   if (args.all) {
-    await services!.github.syncAllRepos();
+    await services.github.syncAllRepos();
   } else if (args.repos) {
     for (const repo of args.repos) {
       const parts = repo.split('/');
       if (parts.length === 2) {
         const [owner, name] = parts as [string, string];
-        await services!.github.syncRepoMetadata(owner, name);
+        await services.github.syncRepoMetadata(owner, name);
       }
     }
   }
@@ -81,7 +81,7 @@ const handleRepoSync: ToolHandler<z.infer<typeof schemas.RepoSyncSchema>> = asyn
 
 const handlePrReviewStatus: ToolHandler<z.infer<typeof schemas.PrReviewStatusSchema_Tool>> = async (args, { db, services }) => {
   if (args.prUrl) {
-    await services!.github.syncPrStatus(args.prUrl);
+    await services.github.syncPrStatus(args.prUrl);
     const prRepo = new PrReviewRepository(db);
     return prRepo.findByPrUrl(args.prUrl);
   }
@@ -113,7 +113,7 @@ const handlePrMerge: ToolHandler<z.infer<typeof schemas.PrMergeSchema>> = async 
     }
   }
 
-  await services!.github.mergePr(prUrl, method);
+  await services.github.mergePr(prUrl, method);
   return { success: true, merged: true };
 };
 
@@ -135,14 +135,14 @@ const handleHealthCheck: ToolHandler = async (_args, { db }) => {
 };
 
 const handleJulesDashboard: ToolHandler<z.infer<typeof schemas.JulesDashboardSchema>> = async (args, { services }) => {
-  const dashboard = await services!.dashboard.generate(args);
+  const dashboard = await services.dashboard.generate(args);
   return {
     content: [{ type: 'text', text: dashboard }],
   };
 };
 
 const handleJulesStatus: ToolHandler = async (_args, { services }) => {
-  const dashboard = await services!.dashboard.generate({ hours: 1 });
+  const dashboard = await services.dashboard.generate({ hours: 1 });
   return {
     content: [{ type: 'text', text: dashboard }],
   };
@@ -152,15 +152,15 @@ const handleJulesPoll: ToolHandler<z.infer<typeof schemas.JulesPollSchema>> = as
   if (args.sessionIds && args.sessionIds.length > 0) {
     const results = [];
     for (const id of args.sessionIds) {
-      results.push(await services!.pollManager.pollSession(id));
+      results.push(await services.pollManager.pollSession(id));
     }
     return { results };
   }
-  return services!.pollManager.pollAllActive();
+  return services.pollManager.pollAllActive();
 };
 
 const handleJulesDetectStalls: ToolHandler = async (_args, { services }) => {
-  const summary = await services!.pollManager.pollAllActive();
+  const summary = await services.pollManager.pollAllActive();
   return {
     stalls: summary.stallsDetected,
     count: summary.stallsDetected.length,
@@ -170,14 +170,39 @@ const handleJulesDetectStalls: ToolHandler = async (_args, { services }) => {
 const handlePrUpdateReview: ToolHandler<z.infer<typeof schemas.PrUpdateReviewSchema>> = async (args, { db }) => {
   const prRepo = new PrReviewRepository(db);
   const pr = await prRepo.findByPrUrl(args.prUrl);
-  
-  await prRepo.upsert({
-    ...(pr || {}),
-    prUrl: args.prUrl,
-    reviewStatus: args.status,
-    reviewNotes: args.notes,
-  } as any);
-  
+
+  if (!pr) {
+    // If PR doesn't exist, we need to create a minimal record with required fields
+    // The prUrl should contain owner/repo/number format
+    const urlParts = args.prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+    if (!urlParts) {
+      throw new Error(`Invalid PR URL format: ${args.prUrl}`);
+    }
+    const [, owner, repo, prNumber] = urlParts;
+    const repoId = `${owner}/${repo}`;
+
+    await prRepo.upsert({
+      prUrl: args.prUrl,
+      repoId,
+      prNumber: parseInt(prNumber, 10),
+      reviewStatus: args.status,
+      reviewNotes: args.notes,
+      // Set null/default values for required fields that we don't have yet
+      title: '',
+      author: '',
+      state: 'open',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  } else {
+    // Update existing record
+    await prRepo.upsert({
+      ...pr,
+      reviewStatus: args.status,
+      reviewNotes: args.notes,
+    });
+  }
+
   return { success: true };
 };
 
@@ -204,7 +229,7 @@ const handleJulesSessionsList: ToolHandler<z.infer<typeof schemas.JulesSessionsL
 };
 
 const handleJulesSessionGet: ToolHandler<z.infer<typeof schemas.JulesSessionGetSchema>> = async ({ sessionId }, { services }) => {
-  return services!.jules.getSession(sessionId);
+  return services.jules.getSession(sessionId);
 };
 
 const handleJulesActivitiesList: ToolHandler<z.infer<typeof schemas.JulesActivitiesListSchema>> = async (args, { db }) => {

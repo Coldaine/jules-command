@@ -520,15 +520,16 @@ describe('MCP Tools Integration', () => {
 
     it('should handle service errors gracefully', async () => {
       mockJulesService.createSession.mockRejectedValue(new Error('API Down'));
-      
+
       const result = await validateAndCallTool(
         'jules_create_session',
         { prompt: 'Test' },
         { config: defaultConfig, db }
       );
-      
+
       expect(result.ok).toBe(false);
-      expect(result.error).toContain('API Down');
+      // Error message should be generic and not expose internal error details
+      expect(result.error).toBe('Tool jules_create_session failed');
     });
   });
 });
