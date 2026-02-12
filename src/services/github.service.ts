@@ -61,13 +61,14 @@ export class GitHubService {
 
   async syncAllRepos() {
     const allRepos = await this.repos.findAll();
-    
+
     for (const repo of allRepos) {
       try {
         await this.syncRepoMetadata(repo.owner, repo.name);
-      } catch (error) {
-        // Continue on individual failures
-        console.error(`Failed to sync ${repo.owner}/${repo.name}:`, error);
+      } catch (error: any) {
+        // Continue on individual failures - log error message only for security
+        const errorMessage = error?.message || 'Unknown error';
+        console.error(`Failed to sync ${repo.owner}/${repo.name}: ${errorMessage}`);
       }
     }
   }
@@ -95,8 +96,8 @@ export class GitHubService {
       // Fetch CI status
       const ciStatus = await this.extractCiStatus(owner, repo, pr.head.sha);
       
-      // Fetch review state
-      const reviewStatus = await this.extractReviewStatus(owner, repo, number);
+      // Fetch review state (default to 'pending' if null)
+      const reviewStatus = (await this.extractReviewStatus(owner, repo, number)) ?? 'pending';
       
       // Fetch files to calculate complexity metrics
       const { data: files } = await this.octokit.pulls.listFiles({
@@ -104,11 +105,12 @@ export class GitHubService {
         repo,
         pull_number: number,
       });
-      
+
       const linesChanged = pr.additions + pr.deletions;
-      const filesChanged = pr.changed_files;
-      const testFilesChanged = files.filter(f => 
-        f.filename.includes('.test.') || 
+      // Use files.length for consistency with other file-based metrics
+      const filesChanged = files.length;
+      const testFilesChanged = files.filter(f =>
+        f.filename.includes('.test.') ||
         f.filename.includes('.spec.') ||
         f.filename.includes('__tests__')
       ).length;
@@ -176,23 +178,26 @@ export class GitHubService {
         repo,
         ref,
       });
-      
+
       if (checks.total_count === 0) {
         return null;
       }
-      
+
       const conclusions = checks.check_runs.map(run => run.conclusion);
-      
+
       if (conclusions.some(c => c === 'failure' || c === 'cancelled')) {
         return 'failure';
       }
-      
+
       if (conclusions.every(c => c === 'success')) {
         return 'success';
       }
-      
+
       return 'pending';
-    } catch {
+    } catch (error: any) {
+      // Log error message for debugging without exposing sensitive details
+      const errorMessage = error?.message || 'Unknown error';
+      console.error(`Failed to extract CI status for ${owner}/${repo}@${ref}: ${errorMessage}`);
       return null;
     }
   }
@@ -204,11 +209,11 @@ export class GitHubService {
         repo,
         pull_number: pullNumber,
       });
-      
+
       if (reviews.length === 0) {
         return null;
       }
-      
+
       // Get the latest review from each reviewer
       const latestReviews = new Map<string, string>();
       for (const review of reviews) {
@@ -216,26 +221,29 @@ export class GitHubService {
           latestReviews.set(review.user.login, review.state);
         }
       }
-      
+
       const states = Array.from(latestReviews.values());
-      
+
       if (states.some(s => s === 'CHANGES_REQUESTED')) {
         return 'changes_requested';
       }
-      
+
       if (states.some(s => s === 'APPROVED')) {
         return 'approved';
       }
-      
+
       return null;
-    } catch {
+    } catch (error: any) {
+      // Log error message for debugging without exposing sensitive details
+      const errorMessage = error?.message || 'Unknown error';
+      console.error(`Failed to extract review status for ${owner}/${repo}#${pullNumber}: ${errorMessage}`);
       return null;
     }
   }
 
   async mergePr(prUrl: string, method: 'merge' | 'squash' | 'rebase' = 'squash') {
     const { owner, repo, number } = parsePrUrl(prUrl);
-    
+
     try {
       // Check if PR is mergeable
       const { data: pr } = await this.octokit.pulls.get({
@@ -243,28 +251,36 @@ export class GitHubService {
         repo,
         pull_number: number,
       });
-      
+
       if (pr.mergeable === false) {
         throw new Error('Pull request is not mergeable due to conflicts');
       }
-      
+
+      if (pr.mergeable === null) {
+        throw new Error('Pull request mergeable status is not yet determined');
+      }
+
       if (pr.state !== 'open') {
         throw new Error(`Pull request is ${pr.state}, not open`);
       }
-      
-      // Merge the PR
+
+      // Merge the PR - log audit trail
+      const mergedAt = new Date().toISOString();
+      console.log(`Merging PR ${prUrl} using ${method} method at ${mergedAt}`);
+
       await this.octokit.pulls.merge({
         owner,
         repo,
         pull_number: number,
         merge_method: method,
       });
-      
+
       // Update DB
       await this.prReviews.upsert({
         prUrl,
         prNumber: number,
-        mergedAt: new Date().toISOString(),
+        repoId: `${owner}/${repo}`,
+        mergedAt,
       });
     } catch (error: any) {
       if (error.status === 404) {

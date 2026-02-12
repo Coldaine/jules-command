@@ -49,6 +49,9 @@ export class JulesService {
   private activities: ActivityRepository;
 
   constructor(config: Config, db: Db) {
+    if (!config.julesApiKey) {
+      throw new Error('Jules API key is required');
+    }
     this.client = connect({ apiKey: config.julesApiKey });
     this.sessions = new SessionRepository(db);
     this.activities = new ActivityRepository(db);

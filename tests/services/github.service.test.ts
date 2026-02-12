@@ -991,12 +991,21 @@ describe('GitHubService', () => {
         .where(eq(prReviews.prUrl, 'https://github.com/owner/repo/pull/123'))
         .limit(1);
       
-      expect(result[0]?.reviewStatus).toBeNull();
+      expect(result[0]?.reviewStatus).toBe('pending');
     });
   });
 
   describe('Merge Operations', () => {
     it('should merge PR with squash method', async () => {
+      // Setup: create the repo first for FK constraint
+      const { repos } = await import('../../src/db/schema.js');
+      await db.insert(repos).values({
+        id: 'owner/repo',
+        owner: 'owner',
+        name: 'repo',
+        fullName: 'owner/repo',
+      });
+
       mockOctokit.pulls.get.mockResolvedValue({
         data: {
           number: 123,
@@ -1004,9 +1013,9 @@ describe('GitHubService', () => {
           mergeable: true,
         },
       });
-      
+
       mockOctokit.pulls.merge.mockResolvedValue({ data: {} });
-      
+
       await expect(
         service.mergePr('https://github.com/owner/repo/pull/123', 'squash')
       ).resolves.toBeUndefined();
@@ -1020,6 +1029,15 @@ describe('GitHubService', () => {
     });
 
     it('should merge PR with merge method', async () => {
+      // Setup: create the repo first for FK constraint
+      const { repos } = await import('../../src/db/schema.js');
+      await db.insert(repos).values({
+        id: 'owner/repo',
+        owner: 'owner',
+        name: 'repo',
+        fullName: 'owner/repo',
+      });
+
       mockOctokit.pulls.get.mockResolvedValue({
         data: {
           number: 123,
@@ -1027,9 +1045,9 @@ describe('GitHubService', () => {
           mergeable: true,
         },
       });
-      
+
       mockOctokit.pulls.merge.mockResolvedValue({ data: {} });
-      
+
       await expect(
         service.mergePr('https://github.com/owner/repo/pull/123', 'merge')
       ).resolves.toBeUndefined();
@@ -1043,6 +1061,15 @@ describe('GitHubService', () => {
     });
 
     it('should merge PR with rebase method', async () => {
+      // Setup: create the repo first for FK constraint
+      const { repos } = await import('../../src/db/schema.js');
+      await db.insert(repos).values({
+        id: 'owner/repo',
+        owner: 'owner',
+        name: 'repo',
+        fullName: 'owner/repo',
+      });
+
       mockOctokit.pulls.get.mockResolvedValue({
         data: {
           number: 123,
@@ -1050,9 +1077,9 @@ describe('GitHubService', () => {
           mergeable: true,
         },
       });
-      
+
       mockOctokit.pulls.merge.mockResolvedValue({ data: {} });
-      
+
       await expect(
         service.mergePr('https://github.com/owner/repo/pull/123', 'rebase')
       ).resolves.toBeUndefined();
@@ -1066,6 +1093,15 @@ describe('GitHubService', () => {
     });
 
     it('should default to squash merge', async () => {
+      // Setup: create the repo first for FK constraint
+      const { repos } = await import('../../src/db/schema.js');
+      await db.insert(repos).values({
+        id: 'owner/repo',
+        owner: 'owner',
+        name: 'repo',
+        fullName: 'owner/repo',
+      });
+
       mockOctokit.pulls.get.mockResolvedValue({
         data: {
           number: 123,
@@ -1073,9 +1109,9 @@ describe('GitHubService', () => {
           mergeable: true,
         },
       });
-      
+
       mockOctokit.pulls.merge.mockResolvedValue({ data: {} });
-      
+
       await expect(
         service.mergePr('https://github.com/owner/repo/pull/123')
       ).resolves.toBeUndefined();
