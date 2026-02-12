@@ -184,15 +184,9 @@ const handlePrUpdateReview: ToolHandler<z.infer<typeof schemas.PrUpdateReviewSch
     await prRepo.upsert({
       prUrl: args.prUrl,
       repoId,
-      prNumber: parseInt(prNumber, 10),
+      prNumber: parseInt(prNumber!, 10),
       reviewStatus: args.status,
       reviewNotes: args.notes,
-      // Set null/default values for required fields that we don't have yet
-      title: '',
-      author: '',
-      state: 'open',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
   } else {
     // Update existing record
