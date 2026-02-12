@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 // --- Enums ---
 
 export const SessionStateSchema = z.enum([

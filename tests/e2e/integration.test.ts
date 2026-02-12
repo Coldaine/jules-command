@@ -32,7 +32,7 @@ describe('End-to-End Integration Tests', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let _sqlite: ReturnType<typeof createTestDb>['sqlite'];
+  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let sessionRepo: SessionRepository;
   let activityRepo: ActivityRepository;
   let prReviewRepo: PrReviewRepository;
