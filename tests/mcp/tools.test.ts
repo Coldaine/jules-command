@@ -92,16 +92,14 @@ describe('MCP Tools Integration', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let sessionRepo: SessionRepository;
   let prReviewRepo: PrReviewRepository;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     const testDb = createTestDb();
     db = testDb.db;
-    sqlite = testDb.sqlite;
     sessionRepo = new SessionRepository(db);
     prReviewRepo = new PrReviewRepository(db);
   });

@@ -1,0 +1,34 @@
+Repo: Coldaine/jules-command
+
+You are a coding agent with repo read/write + shell + PR capability.
+
+Mission:
+1) Determine what "jules-command" does (CLI? service? integration?) from docs and entrypoints.
+2) Produce a concrete roadmap aligned to the project goal.
+3) Execute Milestone 1 immediately.
+
+Required reading:
+- README.md + docs
+- package.json / runtime entrypoints
+- Any CLI/help output or command registry
+- Open issues/PRs
+
+Deliverables:
+A) Contract summary:
+   - Primary commands, inputs/outputs, auth model, and safety constraints
+
+B) Execution plan:
+   - Milestone 1: ensure install/run/build is clean; docs match reality; add tests for critical paths
+   - Milestone 2+: feature roadmap
+
+C) Execute Milestone 1:
+   - Fix broken build/test/docs drift
+   - Add a minimal integration or smoke test
+   - Open PR with clear reproduction steps
+
+Constraints:
+- No secret leakage; redact tokens and document env usage.
+- Keep PR scope tight.
+
+Stopping condition:
+- One PR open that improves reliability (build/test/docs) with a runnable example.

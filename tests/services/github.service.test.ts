@@ -56,7 +56,6 @@ describe('GitHubService', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let service: GitHubService;
 
   beforeEach(() => {
@@ -64,7 +63,6 @@ describe('GitHubService', () => {
     
     const testDb = createTestDb();
     db = testDb.db;
-    sqlite = testDb.sqlite;
     service = new GitHubService(defaultConfig, db);
   });
 

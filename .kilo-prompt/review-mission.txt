@@ -1,0 +1,16 @@
+You are a coding agent working on PR #37 in this repository (branch: kilo/test-coverage).
+
+Your mission is to fully address all open review comments and ensure the PR is complete and correct.
+
+Steps:
+1. Run: gh pr view 37 --comments
+2. Run: gh pr diff 37
+3. Read all new/changed test files.
+4. Address EVERY review comment — implement each fix.
+5. Run: npm test (or equivalent) to ensure tests pass.
+6. Update README.md if comments ask for it.
+7. Commit fixes on the PR branch.
+8. Push.
+9. gh pr review 37 --comment -b "All comments addressed: ..."
+
+Stopping condition: All review comments resolved, tests passing, committed, pushed.

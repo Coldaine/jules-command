@@ -32,7 +32,6 @@ describe('End-to-End Integration Tests', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let sessionRepo: SessionRepository;
   let activityRepo: ActivityRepository;
   let prReviewRepo: PrReviewRepository;
@@ -40,7 +39,6 @@ describe('End-to-End Integration Tests', () => {
   beforeEach(() => {
     const testDb = createTestDb();
     db = testDb.db;
-    sqlite = testDb.sqlite;
     sessionRepo = new SessionRepository(db);
     activityRepo = new ActivityRepository(db);
     prReviewRepo = new PrReviewRepository(db);
