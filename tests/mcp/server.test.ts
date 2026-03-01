@@ -1,15 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { createServer } from "../../src/mcp/server.js";
 import { TOOL_DEFINITIONS } from "../../src/mcp/tools/index.js";
-import { createTestDb } from "../setup.js";
 
 describe("MCP Server", () => {
-  const { db } = createTestDb();
-  const context = {
-    db,
-    services: {} as any,
-    config: {} as any
-  };
 
   describe("Tool Registration", () => {
     it("should register expected number of tools", () => {

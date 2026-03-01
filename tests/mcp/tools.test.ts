@@ -92,7 +92,6 @@ describe('MCP Tools Integration', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let sessionRepo: SessionRepository;
   let prReviewRepo: PrReviewRepository;
 

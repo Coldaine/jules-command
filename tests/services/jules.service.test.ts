@@ -67,7 +67,6 @@ describe('JulesService', () => {
   };
 
   let db: ReturnType<typeof createTestDb>['db'];
-  let sqlite: ReturnType<typeof createTestDb>['sqlite'];
   let service: JulesService;
 
   beforeEach(() => {
@@ -75,7 +74,6 @@ describe('JulesService', () => {
 
     const testDb = createTestDb();
     db = testDb.db;
-    sqlite = testDb.sqlite;
     service = new JulesService(defaultConfig, db);
 
     // Default: session() returns mockSessionClient (sync, like rehydrating)
