@@ -68,9 +68,9 @@ Jules Command exposes 18+ MCP tools for integration with MCP clients (Claude Des
 | Tool | Description |
 |------|-------------|
 | `jules_create_session` | Create a new Jules task |
-| `jules_list_sessions` | List sessions with filtering |
-| `jules_get_session` | Get detailed session info |
-| `jules_get_activities` | Get activities for a session |
+| `jules_sessions_list` | List sessions with filtering |
+| `jules_session_get` | Get detailed session info |
+| `jules_activities_list` | Get activities for a session |
 | `jules_approve_plan` | Approve a pending plan |
 | `jules_send_message` | Send a message to Jules |
 | `jules_get_diff` | Get code diff for a session |
@@ -84,7 +84,7 @@ Jules Command exposes 18+ MCP tools for integration with MCP clients (Claude Des
 | `jules_status` | Quick compact status |
 | `jules_poll` | Sync all active sessions to DB |
 | `jules_detect_stalls` | Analyze sessions for stall patterns |
-| `repo_sync` | Sync GitHub repo metadata |
+| `jules_repo_sync` | Sync GitHub repo metadata |
 | `pr_review_status` | Get PR review tracking |
 | `pr_update_review` | Update PR review status |
 | `pr_check_auto_merge` | Evaluate auto-merge eligibility |

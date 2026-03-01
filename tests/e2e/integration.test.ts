@@ -39,7 +39,6 @@ describe('End-to-End Integration Tests', () => {
   beforeEach(() => {
     const testDb = createTestDb();
     db = testDb.db;
-    sqlite = testDb.sqlite;
     sessionRepo = new SessionRepository(db);
     activityRepo = new ActivityRepository(db);
     prReviewRepo = new PrReviewRepository(db);

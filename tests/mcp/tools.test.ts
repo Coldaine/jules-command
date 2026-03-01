@@ -97,10 +97,9 @@ describe('MCP Tools Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     const testDb = createTestDb();
     db = testDb.db;
-    sqlite = testDb.sqlite;
     sessionRepo = new SessionRepository(db);
     prReviewRepo = new PrReviewRepository(db);
   });

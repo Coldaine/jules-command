@@ -16,22 +16,40 @@ describe('Smoke Tests', () => {
   describe('Build Verification', () => {
     it('should have built dist/index.js', () => {
       const distPath = path.resolve(process.cwd(), 'dist', 'index.js');
-      expect(fs.existsSync(distPath)).toBe(true);
+      expect(fs.existsSync(distPath), 'dist/index.js not found - run "npm run build" first').toBe(true);
     });
 
     it('should have built all service files', () => {
-      const services = ['jules.service.js', 'github.service.js', 'poll-manager.js', 'dashboard.js'];
-      for (const service of services) {
-        const servicePath = path.resolve(process.cwd(), 'dist', 'services', service);
-        expect(fs.existsSync(servicePath)).toBe(true);
+      const srcServicesDir = path.resolve(process.cwd(), 'src', 'services');
+      const distServicesDir = path.resolve(process.cwd(), 'dist', 'services');
+
+      // Skip if src directory doesn't exist (e.g., in minimal CI)
+      if (!fs.existsSync(srcServicesDir)) {
+        return;
+      }
+
+      const serviceFiles = fs.readdirSync(srcServicesDir).filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+      for (const tsFile of serviceFiles) {
+        const jsFile = tsFile.replace('.ts', '.js');
+        const servicePath = path.resolve(distServicesDir, jsFile);
+        expect(fs.existsSync(servicePath), `Expected ${jsFile} to be built`).toBe(true);
       }
     });
 
     it('should have built all database files', () => {
-      const dbFiles = ['migrate.js', 'schema.js', 'index.js'];
-      for (const file of dbFiles) {
-        const dbPath = path.resolve(process.cwd(), 'dist', 'db', file);
-        expect(fs.existsSync(dbPath)).toBe(true);
+      const srcDbDir = path.resolve(process.cwd(), 'src', 'db');
+      const distDbDir = path.resolve(process.cwd(), 'dist', 'db');
+
+      // Skip if src directory doesn't exist
+      if (!fs.existsSync(srcDbDir)) {
+        return;
+      }
+
+      const dbTsFiles = fs.readdirSync(srcDbDir).filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+      for (const tsFile of dbTsFiles) {
+        const jsFile = tsFile.replace('.ts', '.js');
+        const dbPath = path.resolve(distDbDir, jsFile);
+        expect(fs.existsSync(dbPath), `Expected ${jsFile} to be built`).toBe(true);
       }
     });
   });
