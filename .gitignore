@@ -8,3 +8,10 @@ data/
 .env.local
 coverage/
 .DS_Store
+
+# Generated metadata - do not commit
+_open_prs.json
+_open_issues.json
+issues.json
+_repo_metadata.json
+
